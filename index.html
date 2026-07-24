@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function () {
+            var stored = localStorage.getItem('theme');
+            var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <title>Данияр Идиров — doniar4</title>
+    <meta name="description" content="Данияр Идиров (doniar4) — ученик НИШ ФМН, олимпиадное программирование на C++, веб и Python для AI-стартапов и хакатонов.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="site-header">
+        <a href="#top" class="logo">doniar4</a>
+        <nav class="main-nav">
+            <a href="#about">about.md</a>
+            <a href="#stack">stack.json</a>
+            <a href="#goals">goals.log</a>
+            <a href="#contact">contact.sh</a>
+        </nav>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Переключить тему" aria-pressed="false">
+            <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/>
+                <path stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M12 2.5v2.4M12 19.1v2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7"/>
+            </svg>
+            <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/>
+            </svg>
+        </button>
+    </header>
+
+    <main id="top">
+
+        <!-- HERO -->
+        <section class="hero">
+            <div class="code-drift" aria-hidden="true">
+                <span style="--x:8%; --delay:0s; --dur:16s;">&lt;div&gt;</span>
+                <span style="--x:20%; --delay:2.4s; --dur:19s;">const</span>
+                <span style="--x:34%; --delay:5s; --dur:14s;">{ }</span>
+                <span style="--x:48%; --delay:1s; --dur:18s;">=&gt;</span>
+                <span style="--x:60%; --delay:7s; --dur:15s;">npm run dev</span>
+                <span style="--x:72%; --delay:3.5s; --dur:20s;">import ai</span>
+                <span style="--x:84%; --delay:6s; --dur:13s;">git push</span>
+                <span style="--x:92%; --delay:0.8s; --dur:17s;">0x1F</span>
+                <span style="--x:15%; --delay:9s; --dur:21s;">async</span>
+                <span style="--x:66%; --delay:11s; --dur:16s;">while(true)</span>
+            </div>
+            <div class="hero-inner">
+                <p class="terminal-line">
+                    <span class="prompt">daniyar@doniar4</span><span class="path">:~$</span>
+                    <span id="typed-command" class="typed"></span><span class="cursor" aria-hidden="true"></span>
+                </p>
+                <h1 class="hero-title">Данияр Идиров</h1>
+                <p class="hero-subtitle">
+                    Ученик 9 класса НИШ ФМН. Оттачиваю алгоритмический C++ на олимпиадах
+                    по информатике, а веб и Python использую как прикладной инструмент —
+                    чтобы быстро собирать MVP для AI-стартапов и хакатонов.
+                </p>
+                <div class="hero-actions">
+                    <a href="#contact" class="btn btn-primary">Написать мне</a>
+                    <a href="#stack" class="btn btn-ghost">Мой стек</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ABOUT -->
+        <section id="about" class="section">
+            <div class="section-inner">
+                <p class="file-tag">// 01 about.md</p>
+                <h2 class="section-title">Обо мне</h2>
+                <p class="section-text">
+                    Меня зовут Данияр, в сети я — <strong>doniar4</strong>. Учусь в 9 классе
+                    НИШ ФМН (Назарбаев Интеллектуальная Школа Физико-Математического
+                    Направления), и моя главная страсть — олимпиадное программирование.
+                    Большую часть времени затачиваю алгоритмический C++ и математику:
+                    разбираю структуры данных, решаю задачи на скорость и логику,
+                    готовлюсь к следующим турам олимпиад.
+                </p>
+                <p class="section-text">
+                    Веб-разработку и Python учу как прикладной инструмент — чтобы уметь
+                    быстро довести идею до рабочего MVP на хакатоне или в собственном
+                    AI-проекте. Английский у меня на уровне B2: сериалы, документация
+                    и техническая литература — всё смотрю и читаю в оригинале, без
+                    дубляжа. Работаю на MacBook — это мой основной рабочий инструмент
+                    и для алгоритмов, и для веба.
+                </p>
+            </div>
+        </section>
+
+        <!-- STACK -->
+        <section id="stack" class="section section-alt">
+            <div class="section-inner">
+                <p class="file-tag">// 02 stack.json</p>
+                <h2 class="section-title">Мой стек</h2>
+                <ul class="stack-grid">
+                    <li class="stack-card">
+                        <span class="stack-name">Algorithmic C++</span>
+                        <span class="stack-status status-confident">уверенно</span>
+                    </li>
+                    <li class="stack-card">
+                        <span class="stack-name">Python</span>
+                        <span class="stack-status status-confident">уверенно</span>
+                    </li>
+                    <li class="stack-card">
+                        <span class="stack-name">HTML</span>
+                        <span class="stack-status status-confident">уверенно</span>
+                    </li>
+                    <li class="stack-card">
+                        <span class="stack-name">CSS</span>
+                        <span class="stack-status status-confident">уверенно</span>
+                    </li>
+                    <li class="stack-card">
+                        <span class="stack-name">JavaScript</span>
+                        <span class="stack-status status-learning">учу</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- GOALS -->
+        <section id="goals" class="section">
+            <div class="section-inner">
+                <p class="file-tag">// 03 goals.log</p>
+                <h2 class="section-title">Куда я иду</h2>
+                <ul class="log-list">
+                    <li class="log-entry">
+                        <span class="log-status status-progress">in progress</span>
+                        <div class="log-body">
+                            <h3>Побеждать на олимпиадах по информатике</h3>
+                            <p>Прокачиваю алгоритмический C++ и математику, разбираю структуры данных и решаю задачи на скорость и логику.</p>
+                        </div>
+                    </li>
+                    <li class="log-entry">
+                        <span class="log-status status-progress">in progress</span>
+                        <div class="log-body">
+                            <h3>Сдать AP Computer Science Principles</h3>
+                            <p>Готовлюсь к AP CSP и другим STEM AP-экзаменам параллельно с олимпиадной подготовкой.</p>
+                        </div>
+                    </li>
+                    <li class="log-entry">
+                        <span class="log-status status-planned">planned</span>
+                        <div class="log-body">
+                            <h3>Собрать первый AI-прототип</h3>
+                            <p>Соединить алгоритмическую базу с Python и веб-разработкой в рабочий MVP — от идеи до демо.</p>
+                        </div>
+                    </li>
+                    <li class="log-entry">
+                        <span class="log-status status-planned">planned</span>
+                        <div class="log-body">
+                            <h3>Первый хакатон в команде</h3>
+                            <p>Хочу собрать рабочий прототип с нуля за 24–48 часов и защитить его перед жюри.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <footer id="contact" class="site-footer">
+        <div class="footer-inner">
+            <p class="file-tag">// contact.sh</p>
+            <h2 class="footer-title">Свяжитесь со мной</h2>
+            <p class="footer-text">
+                Открыт для командных проектов, менторства и приглашений на хакатоны.
+            </p>
+            <div class="footer-links">
+                <a href="mailto:doniar4@example.com" class="btn btn-primary">Написать на почту</a>
+                <a href="#" class="footer-social">GitHub</a>
+                <a href="#" class="footer-social">Telegram</a>
+            </div>
+            <p class="footer-note">© 2026 Данияр Идиров · doniar4</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

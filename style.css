@@ -558,3 +558,18 @@ ul { list-style: none; margin: 0; padding: 0; }
 .text-link:hover { color: var(--mint); }
 .text-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 .project-note { display: block; color: var(--text-muted); margin-top: 8px; font-size: .8rem; }
+
+/* ---------- Experience ---------- */
+.experience-entry {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 20px;
+    border-left: 2px solid var(--mint);
+    padding: 20px 24px;
+    background: var(--mint-soft);
+}
+.status-completed { color: var(--mint); background: var(--mint-soft); }
+@media (max-width: 480px) {
+    .experience-entry { grid-template-columns: 1fr; padding: 20px; }
+    .experience-entry .log-status { justify-self: start; }
+}

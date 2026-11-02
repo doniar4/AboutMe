@@ -545,3 +545,16 @@ ul { list-style: none; margin: 0; padding: 0; }
 @media (max-width: 540px) {
     .academic-facts { grid-template-columns: 1fr; gap: 20px; }
 }
+
+/* ---------- Projects ---------- */
+.project-list { display: grid; gap: 28px; }
+.project-entry { padding: 0 0 28px; border-bottom: 1px solid var(--border); }
+.project-entry:last-child { padding-bottom: 0; border-bottom: 0; }
+.project-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.project-heading h3 { margin: 0; font: 600 1.3rem/1.4 var(--font-display); }
+.project-entry p { color: var(--text-muted); max-width: 65ch; margin: 14px 0; }
+.project-entry .project-tools { color: var(--mint); font: .8rem/1.7 var(--font-mono); }
+.text-link { display: inline-block; color: var(--accent); padding: 6px 0; border-bottom: 1px solid currentColor; }
+.text-link:hover { color: var(--mint); }
+.text-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+.project-note { display: block; color: var(--text-muted); margin-top: 8px; font-size: .8rem; }

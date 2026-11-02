@@ -88,5 +88,3 @@
 
     sections.forEach((section) => observer.observe(section));
 })();
-
-alert('Good luck, vro. Keep learning web!');

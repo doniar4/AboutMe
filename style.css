@@ -573,3 +573,8 @@ ul { list-style: none; margin: 0; padding: 0; }
     .experience-entry { grid-template-columns: 1fr; padding: 20px; }
     .experience-entry .log-status { justify-self: start; }
 }
+
+/* ---------- Long-term direction ---------- */
+.dream-note { padding: 0 0 28px; margin-bottom: 28px; border-bottom: 1px solid var(--border); }
+.dream-note h3 { font: 600 clamp(1.2rem, 3vw, 1.6rem)/1.35 var(--font-display); margin: 0 0 12px; }
+.dream-note p:last-child { color: var(--text-muted); max-width: 65ch; margin-bottom: 0; }

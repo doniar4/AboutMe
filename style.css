@@ -578,3 +578,16 @@ ul { list-style: none; margin: 0; padding: 0; }
 .dream-note { padding: 0 0 28px; margin-bottom: 28px; border-bottom: 1px solid var(--border); }
 .dream-note h3 { font: 600 clamp(1.2rem, 3vw, 1.6rem)/1.35 var(--font-display); margin: 0 0 12px; }
 .dream-note p:last-child { color: var(--text-muted); max-width: 65ch; margin-bottom: 0; }
+
+/* ---------- Shared alignment and compact navigation ---------- */
+.hero-inner { width: 100%; margin-inline: auto; }
+.main-nav { flex-wrap: wrap; justify-content: center; row-gap: 10px; }
+.main-nav a { padding-block: 6px; }
+.theme-toggle { width: 44px; height: 44px; }
+.section, .site-footer { scroll-margin-top: 140px; }
+@media (max-width: 860px) {
+    .main-nav { order: 3; flex-basis: 100%; font-size: .75rem; gap: 6px 16px; }
+    .site-header { padding-block: 12px; gap: 8px 16px; }
+    .hero { min-height: 78svh; padding-block: 48px; }
+    .hero-title { font-size: clamp(2.3rem, 7vw, 4.5rem); }
+}

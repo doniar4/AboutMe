@@ -71,7 +71,7 @@
     if (!target) return;
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const command = 'whoami';
+    const command = 'cat now.md';
 
     if (prefersReducedMotion) {
         target.textContent = command;

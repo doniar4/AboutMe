@@ -177,21 +177,35 @@ ul { list-style: none; margin: 0; padding: 0; }
     isolation: isolate;
 }
 
-/* Cursor spotlight — a faint glow that follows the pointer, like a
-   flashlight in a dark terminal. --mx / --my are set from script.js. */
-.hero::before {
+/* A small viewport light, shared by every section. The native cursor stays visible. */
+.pointer-glow {
+    --glow-color: color-mix(in srgb, var(--accent) 10%, transparent);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 68%);
+    transform: translate3d(calc(var(--pointer-x, -300px) - 50%), calc(var(--pointer-y, -300px) - 50%), 0);
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 180ms ease;
+}
+.pointer-glow::after {
     content: "";
     position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background: radial-gradient(
-        420px circle at var(--mx, 50%) var(--my, 30%),
-        var(--accent-soft),
-        transparent 70%
-    );
-    opacity: 0.9;
-    transition: opacity 0.3s ease;
+    inset: 91px;
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+    border-radius: 50%;
+}
+.pointer-glow.is-active { opacity: 1; }
+[data-theme="light"] .pointer-glow {
+    --glow-color: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+    .pointer-glow { display: none; }
 }
 
 .hero-inner {
@@ -229,7 +243,6 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 @media (prefers-reduced-motion: reduce) {
     .code-drift span { animation: none; opacity: 0.12; bottom: 40%; }
-    .hero::before { display: none; }
 }
 
 @media (max-width: 640px) {

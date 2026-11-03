@@ -22,22 +22,47 @@
     });
 })();
 
-// ---------- Cursor spotlight in the hero ----------
-(function heroSpotlight() {
-    const hero = document.querySelector('.hero');
-    if (!hero) return;
+// ---------- One pointer light for the entire page ----------
+(function pageSpotlight() {
+    const glow = document.querySelector('.pointer-glow');
+    if (!glow) return;
 
-    const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!canHover || prefersReducedMotion) return;
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let frame = 0;
+    let x = 0;
+    let y = 0;
+    const enabled = () => finePointer.matches && !reducedMotion.matches;
 
-    hero.addEventListener('pointermove', (event) => {
-        const rect = hero.getBoundingClientRect();
-        const x = ((event.clientX - rect.left) / rect.width) * 100;
-        const y = ((event.clientY - rect.top) / rect.height) * 100;
-        hero.style.setProperty('--mx', `${x}%`);
-        hero.style.setProperty('--my', `${y}%`);
+    function hide() {
+        if (frame) cancelAnimationFrame(frame);
+        frame = 0;
+        glow.classList.remove('is-active');
+    }
+
+    function paint() {
+        frame = 0;
+        if (!enabled() || document.hidden) return;
+        glow.style.setProperty('--pointer-x', `${x}px`);
+        glow.style.setProperty('--pointer-y', `${y}px`);
+        glow.classList.add('is-active');
+    }
+
+    document.addEventListener('pointermove', event => {
+        if (!enabled() || event.pointerType === 'touch') return;
+        x = event.clientX;
+        y = event.clientY;
+        // Coalesce multiple pointer events into a single update per frame.
+        if (!frame) frame = requestAnimationFrame(paint);
+    }, { passive: true });
+
+    document.documentElement.addEventListener('pointerleave', hide);
+    window.addEventListener('blur', hide);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) hide();
     });
+    finePointer.addEventListener('change', hide);
+    reducedMotion.addEventListener('change', hide);
 })();
 
 // ---------- Typing effect in the hero terminal line ----------

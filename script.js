@@ -12,10 +12,13 @@
     function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         button.setAttribute('aria-pressed', String(theme === 'light'));
-        localStorage.setItem('theme', theme);
+        button.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+        // Storage can be unavailable in private or embedded browsing contexts.
+        try { localStorage.setItem('theme', theme); } catch (_) {}
     }
 
     button.setAttribute('aria-pressed', String(currentTheme() === 'light'));
+    button.setAttribute('aria-label', currentTheme() === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
 
     button.addEventListener('click', () => {
         applyTheme(currentTheme() === 'light' ? 'dark' : 'light');

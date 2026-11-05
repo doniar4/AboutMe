@@ -421,7 +421,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 .log-entry {
     display: grid;
-    grid-template-columns: 110px 1fr;
+    grid-template-columns: 110px minmax(0, 1fr);
     gap: 20px;
     padding-bottom: 24px;
     border-bottom: 1px solid var(--border);
@@ -568,9 +568,10 @@ ul { list-style: none; margin: 0; padding: 0; }
 .project-note { display: block; color: var(--text-muted); margin-top: 8px; font-size: .8rem; }
 
 /* ---------- Experience ---------- */
+.experience-list { display: grid; gap: 16px; }
 .experience-entry {
     display: grid;
-    grid-template-columns: 110px 1fr;
+    grid-template-columns: 110px minmax(0, 1fr);
     gap: 20px;
     border-left: 2px solid var(--mint);
     padding: 20px 24px;
@@ -636,4 +637,14 @@ ul { list-style: none; margin: 0; padding: 0; }
 .stack-list li { white-space: nowrap; }
 @media (max-width: 600px) {
     .stack-list { font-size: .85rem; gap: 6px 16px; }
+}
+
+/* Keep event titles and technology names readable on narrow screens. */
+.experience-entry .log-status { justify-self: start; }
+.experience-entry .log-body { min-width: 0; }
+.experience-entry .log-body h3 { line-height: 1.4; }
+.experience-entry .log-body p { text-wrap: pretty; }
+@media (max-width: 480px) {
+    .log-status { justify-self: start; }
+    .experience-list { gap: 12px; }
 }

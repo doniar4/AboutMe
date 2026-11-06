@@ -3,12 +3,16 @@
 window.PortfolioAssembly = (() => {
     function split(element) {
         if (element.querySelector('.type-visual')) return;
-        const text = element.textContent;
+        const copy = element.cloneNode(true);
+        copy.querySelectorAll('br').forEach(br => br.replaceWith(document.createTextNode('\u0000')));
+        const text = copy.textContent;
+        copy.querySelectorAll('[aria-hidden="true"]').forEach(el => el.remove());
         const accessible = document.createElement('span');
-        accessible.className = 'sr-only'; accessible.textContent = text;
+        accessible.className = 'sr-only'; accessible.textContent = copy.textContent.replaceAll('\u0000', ' ');
         const visual = document.createElement('span');
         visual.className = 'type-visual'; visual.setAttribute('aria-hidden', 'true');
-        text.split(/(\s+)/).forEach(word => {
+        text.split(/(\s+|\u0000)/).forEach(word => {
+            if (word === '\u0000') { visual.append(document.createElement('br')); return; }
             if (/^\s+$/.test(word)) { visual.append(document.createTextNode(word)); return; }
             const group = document.createElement('span'); group.className = 'type-word';
             Array.from(word).forEach(char => {

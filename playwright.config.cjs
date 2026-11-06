@@ -1,0 +1,14 @@
+const { defineConfig } = require('@playwright/test');
+module.exports = defineConfig({
+    testDir: './tests',
+    fullyParallel: true,
+    workers: 3,
+    use: {
+        baseURL: 'http://127.0.0.1:8879',
+        viewport: { width: 1440, height: 1000 },
+        colorScheme: 'dark',
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_CHANNEL
+            ? { channel: process.env.PLAYWRIGHT_CHROMIUM_CHANNEL } : {},
+    },
+    webServer: { command: 'python3 scripts/serve.py --port 8879', url: 'http://127.0.0.1:8879', reuseExistingServer: false },
+});

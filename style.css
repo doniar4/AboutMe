@@ -673,3 +673,28 @@ body { background-size: 32px 32px; }
 [data-assemble] > .scene-cursor { color: var(--mint); }
 [data-assemble] > .scene-cursor .cursor-label { background: var(--mint); color: var(--bg); }
 .section, .site-footer { overflow: clip; }
+
+/* ---------- Profile and work: different rhythms on one canvas ---------- */
+.about-layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: clamp(32px, 7vw, 100px); align-items: start; }
+.about-copy .section-text:first-child { font-size: clamp(1.1rem, 2vw, 1.35rem); color: var(--text); line-height: 1.65; margin-bottom: 28px; }
+.study-board { border: 1px solid var(--border); border-radius: var(--radius); padding: 30px; background: var(--bg-soft); }
+.academic-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; border: 0; margin: 0; padding: 0; }
+.academic-facts div:last-child { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 22px; }
+.academic-facts div:first-child dd { font-size: 3.4rem; letter-spacing: -.06em; color: var(--text); line-height: 1; }
+.academic-facts dd { font-size: 1.3rem; }
+.project-list { grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: stretch; }
+.project-entry, .project-entry:last-child { border: 1px solid var(--border); background: var(--bg-soft); padding: clamp(24px, 3vw, 40px); border-radius: var(--radius); }
+.project-entry:first-child { background: color-mix(in srgb, var(--mint) 7%, var(--bg)); }
+.project-monogram { height: 190px; display: flex; align-items: center; gap: 12px; font: 600 clamp(3.5rem, 6vw, 5rem)/1 var(--font-display); letter-spacing: -.07em; color: var(--mint); }
+.project-monogram span { color: var(--text); }
+.hardware-mark { height: 190px; display: flex; align-items: center; justify-content: center; font: 400 6rem/1 var(--font-mono); color: var(--text-muted); }
+.hardware-mark span { color: var(--accent); font-size: 3rem; transform: rotate(12deg); }
+.project-heading h3 { font-size: 1.35rem; }
+.project-entry p { font-size: .92rem; }
+.project-status { border-radius: 4px; font-size: .64rem; }
+.project-entry .text-link { font-size: .8rem; }
+.stack-groups { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-soft); }
+.stack-group, .stack-group:first-child, .stack-group:last-child { padding: 32px; }
+.stack-group h3 { font-size: .9rem; }
+.stack-list { gap: 10px 24px; font-size: .86rem; }
+.stack-list li { padding-block: 2px; }

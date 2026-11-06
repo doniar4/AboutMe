@@ -11,7 +11,6 @@
     let intro;
     const sceneTimelines = [];
 
-    const splitText = PortfolioAssembly.split;
     const measurements = [];
 
     function heroSequence() {
@@ -58,54 +57,25 @@
             console.error('Portfolio motion unavailable:', error);
         }
     }
-    function cursorFor(host, label) {
-        let cursor = host.querySelector(':scope > .scene-cursor');
-        if (!cursor) {
-            cursor = document.createElement('span');
-            cursor.className = 'build-cursor scene-cursor';
-            cursor.setAttribute('aria-hidden', 'true');
-            const arrow = document.createElement('span');
-            arrow.className = 'cursor-arrow';
-            cursor.append(arrow);
-            host.append(cursor);
-        }
-        return cursor;
-    }
-
     function buildScenes() {
-        document.querySelectorAll('.section-inner, .footer-inner').forEach(host => {
-            const heading = host.querySelector('h2');
-            splitText(heading);
-            const cursor = cursorFor(host, 'type');
-            const chars = heading.querySelectorAll('.type-char');
-            const line = gsap.timeline({ scrollTrigger: {
-                trigger: heading, start: 'top 90%', end: 'top 62%', scrub: .25,
-                invalidateOnRefresh: true
-            }});
-            line.fromTo(cursor, { x: -24, y: () => heading.offsetTop - 30, opacity: 0 },
-                { x: 0, y: () => heading.offsetTop, opacity: 1, duration: .15 })
-                .fromTo(chars, { opacity: 0 }, { opacity: 1, duration: .01, stagger: .012, ease: 'none' }, .12)
-                .to(cursor, { x: () => Math.min(heading.scrollWidth * .8, host.clientWidth - 85), y: () => heading.offsetTop + heading.offsetHeight, duration: .6, ease: 'none' }, .12)
-                .to(cursor, { opacity: 0, duration: .15 });
-            sceneTimelines.push({ host, line });
-        });
+        const headed = new Set();
         document.querySelectorAll('[data-assemble]').forEach((piece, index) => {
-            const cursor = cursorFor(piece, piece.dataset.assemble);
-            // Animate the surface and its contents independently: first place, then fill.
-            const content = [...piece.children].filter(child => child !== cursor);
-            const line = gsap.timeline({ scrollTrigger: {
-                trigger: piece, start: 'top 94%', end: 'top 57%', scrub: .35,
-                invalidateOnRefresh: true
-            }});
-            line.fromTo(piece, { opacity: 0, y: 34, rotation: index % 2 ? 1.2 : -1.2 },
-                { opacity: 1, y: 0, rotation: 0, duration: .5, ease: 'power2.out' }, 0)
-                .fromTo(cursor, { x: -10, y: -15, opacity: 0 },
-                    { x: 10, y: 10, opacity: 1, duration: .15 }, 0)
-                .fromTo(content, { opacity: 0, y: 10 },
-                    { opacity: 1, y: 0, duration: .3, stagger: .055, ease: 'power2.out' }, .2)
-                .to(cursor, { x: () => Math.max(24, piece.clientWidth - 85), y: () => Math.min(piece.clientHeight - 30, 170), duration: .65, ease: 'power1.inOut' }, .1)
-                .to(cursor, { opacity: 0, duration: .2 }, .8);
-            sceneTimelines.push({ host: piece, line });
+            const section = piece.closest('.section-inner, .footer-inner');
+            const heading = headed.has(section) ? null : section.querySelector('h2');
+            headed.add(section);
+            const job = PortfolioAssembly.create(piece, { corner: index % 4, heading });
+            measurements.push(job.measure);
+            ScrollTrigger.create({
+                animation: job.line,
+                trigger: heading || piece,
+                endTrigger: piece,
+                start: 'top 92%',
+                end: 'clamp(top 38%)',
+                scrub: .2,
+                invalidateOnRefresh: true,
+            });
+            // The first cursor writes the section heading, then builds its panel.
+            sceneTimelines.push({ host: heading ? section : piece, line: job.line });
         });
     }
 

@@ -178,12 +178,12 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 /* A small viewport light, shared by every section. The native cursor stays visible. */
 .pointer-glow {
-    --glow-color: color-mix(in srgb, var(--accent) 10%, transparent);
+    --glow-color: color-mix(in srgb, var(--mint) 6%, transparent);
     position: fixed;
     top: 0;
     left: 0;
-    width: 200px;
-    height: 200px;
+    width: 360px;
+    height: 360px;
     border-radius: 50%;
     background: radial-gradient(circle, var(--glow-color) 0%, transparent 68%);
     transform: translate3d(calc(var(--pointer-x, -300px) - 50%), calc(var(--pointer-y, -300px) - 50%), 0);
@@ -192,16 +192,9 @@ ul { list-style: none; margin: 0; padding: 0; }
     opacity: 0;
     transition: opacity 180ms ease;
 }
-.pointer-glow::after {
-    content: "";
-    position: absolute;
-    inset: 91px;
-    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-    border-radius: 50%;
-}
 .pointer-glow.is-active { opacity: 1; }
 [data-theme="light"] .pointer-glow {
-    --glow-color: color-mix(in srgb, var(--accent) 8%, transparent);
+    --glow-color: color-mix(in srgb, var(--mint) 5%, transparent);
 }
 @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
     .pointer-glow { display: none; }
@@ -652,9 +645,7 @@ body { background-size: 32px 32px; }
 .note-signature { display: block; font: .62rem var(--font-mono); color: var(--text-muted); margin-top: 28px; }
 .build-cursor { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; color: var(--accent); opacity: 0; }
 .cursor-arrow { display: block; width: 24px; height: 30px; background: currentColor; clip-path: polygon(0 0, 100% 70%, 53% 73%, 30% 100%); filter: drop-shadow(0 1px 0 var(--bg)); }
-.cursor-label { display: block; margin: 0 0 0 22px; padding: 3px 9px; border-radius: 3px; background: var(--accent); color: #14100a; font: 500 .65rem/1.5 var(--font-mono); white-space: nowrap; }
 .cursor-layout { color: var(--mint); }
-.cursor-layout .cursor-label { background: var(--mint); color: var(--bg); }
 .section { padding-block: clamp(80px, 12vw, 160px); }
 .section-inner { position: relative; }
 .section-title { font-size: clamp(2rem, 4vw, 3.6rem); font-weight: 500; line-height: 1.1; margin-bottom: 36px; }
@@ -671,7 +662,6 @@ body { background-size: 32px 32px; }
 /* Scene cursors are decorative siblings, never interactive overlays. */
 [data-assemble], .footer-inner { position: relative; }
 [data-assemble] > .scene-cursor { color: var(--mint); }
-[data-assemble] > .scene-cursor .cursor-label { background: var(--mint); color: var(--bg); }
 .section, .site-footer { overflow: clip; }
 
 /* ---------- Profile and work: different rhythms on one canvas ---------- */
@@ -763,7 +753,6 @@ body { background-size: 32px 32px; }
     .contact-handle { font-size: .75rem; }
     .contact-arrow { font-size: 1.2rem; }
     .cursor-arrow { width: 18px; height: 24px; }
-    .cursor-label { font-size: .58rem; }
     .footer-note { margin-top: 40px; }
 }
 @media (max-width: 380px) {
@@ -793,3 +782,12 @@ body { background-size: 32px 32px; }
     .main-nav { column-gap: 12px; row-gap: 0; }
     .main-nav a { min-height: 36px; display: inline-flex; align-items: center; }
 }
+
+/* Small anonymous tools, with a press ring only while gripping a handle. */
+.cursor-arrow { width: 14px; height: 18px; }
+.build-cursor::after {
+    content: ""; position: absolute; width: 18px; height: 18px;
+    left: -9px; top: -9px; border: 1px solid currentColor; border-radius: 50%;
+    opacity: var(--pressed, 0); transform: scale(var(--pressed, 0));
+}
+.pointer-glow { transition: opacity 400ms ease; }

@@ -35,26 +35,34 @@
     let frame = 0;
     let x = 0;
     let y = 0;
+    let lightX = 0;
+    let lightY = 0;
+    let initialized = false;
     const enabled = () => finePointer.matches && !reducedMotion.matches && document.documentElement.dataset.motion !== 'off';
 
     function hide() {
         if (frame) cancelAnimationFrame(frame);
         frame = 0;
         glow.classList.remove('is-active');
+        initialized = false;
     }
 
     function paint() {
         frame = 0;
         if (!enabled() || document.hidden) return;
-        glow.style.setProperty('--pointer-x', `${x}px`);
-        glow.style.setProperty('--pointer-y', `${y}px`);
+        lightX += (x - lightX) * .16;
+        lightY += (y - lightY) * .16;
+        glow.style.setProperty('--pointer-x', `${lightX}px`);
+        glow.style.setProperty('--pointer-y', `${lightY}px`);
         glow.classList.add('is-active');
+        if (Math.abs(x - lightX) + Math.abs(y - lightY) > .2) frame = requestAnimationFrame(paint);
     }
 
     document.addEventListener('pointermove', event => {
         if (!enabled() || event.pointerType === 'touch') return;
         x = event.clientX;
         y = event.clientY;
+        if (!initialized) { lightX = x; lightY = y; initialized = true; }
         // Coalesce multiple pointer events into a single update per frame.
         if (!frame) frame = requestAnimationFrame(paint);
     }, { passive: true });

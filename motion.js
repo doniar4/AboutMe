@@ -99,10 +99,7 @@
             cursor.setAttribute('aria-hidden', 'true');
             const arrow = document.createElement('span');
             arrow.className = 'cursor-arrow';
-            const name = document.createElement('span');
-            name.className = 'cursor-label';
-            name.textContent = label;
-            cursor.append(arrow, name);
+            cursor.append(arrow);
             host.append(cursor);
         }
         return cursor;

@@ -821,3 +821,8 @@ body { background-size: 32px 32px; }
     .assembly-surface, .assembly-outline, .typing-caret { display: none !important; }
     [data-motion="on"] .assembly-host { border-color: var(--border); }
 }
+
+/* A drawn surface has no rotation: its corner and the cursor coincide. */
+.hero-note { transform: none; }
+.name-frame { padding: 10px 16px; margin-left: -16px; }
+.hero-actions > .assembly-outline { border-radius: 5px; }

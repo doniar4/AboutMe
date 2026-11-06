@@ -23,12 +23,17 @@ class FreshPageHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
 
+class PreviewServer(ThreadingHTTPServer):
+    # Browsers fetch local fonts and scripts concurrently across preview tabs.
+    request_queue_size = 64
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=8768)
     args = parser.parse_args()
     handler = partial(FreshPageHandler, directory=str(ROOT))
-    with ThreadingHTTPServer(('127.0.0.1', args.port), handler) as server:
+    with PreviewServer(('127.0.0.1', args.port), handler) as server:
         print(f'AboutMe: http://127.0.0.1:{args.port}', flush=True)
         try:
             server.serve_forever()

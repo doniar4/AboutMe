@@ -721,3 +721,68 @@ body { background-size: 32px 32px; }
 .contact-platform { font-size: 1.25rem; font-weight: 500; }
 .contact-arrow { font-size: 1.5rem; }
 .footer-note { margin-top: 60px; }
+
+/* ---------- Smaller canvases retain the same reading order ---------- */
+@media (max-width: 1050px) {
+    .main-nav { order: 3; flex-basis: 100%; }
+    .site-header { flex-wrap: wrap; gap: 8px; padding: 12px 24px; }
+    .main-nav a { padding-block: 7px; }
+    .hero-inner { gap: 40px; }
+    .hero-note { padding: 22px; }
+    .note-code { grid-template-columns: 1fr; gap: 4px; }
+    .note-code strong { margin-bottom: 8px; }
+}
+@media (max-width: 767px) {
+    .hero { min-height: auto; padding: 64px 28px 72px; }
+    .hero-inner { grid-template-columns: 1fr; gap: 56px; }
+    .hero-title { font-size: clamp(3.7rem, 15vw, 6.8rem); }
+    .hero-note { width: min(100%, 390px); justify-self: end; padding: 24px; transform: rotate(2deg); }
+    .note-headline { font-size: 1.75rem; }
+    .note-code { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .note-code strong { margin: 0; }
+    .hero-subtitle { font-size: .9rem; }
+    .hero-subtitle br { display: none; }
+    .hero-actions { gap: 10px; }
+    .btn { padding: 12px 16px; font-size: .8rem; gap: 12px; }
+    .selection-box { inset: -10px -12px; }
+    .selection-label { bottom: calc(100% + 10px); right: -12px; }
+    .section, .site-footer { padding-inline: 24px; padding-block: 72px; scroll-margin-top: 140px; }
+    .section-title { font-size: clamp(2rem, 7vw, 3rem); }
+    .about-layout, .project-list, .roadmap-grid { grid-template-columns: 1fr; gap: 28px; }
+    .about-layout { gap: 18px; }
+    .project-entry, .project-entry:last-child { padding: 24px; }
+    .project-monogram, .hardware-mark { height: 130px; }
+    .stack-group, .stack-group:first-child, .stack-group:last-child { grid-template-columns: 1fr; padding: 24px; gap: 14px; }
+    .stack-list { font-size: .8rem; gap: 8px 18px; }
+    .experience-entry { grid-template-columns: 1fr; gap: 14px; padding: 28px 0; }
+    .experience-entry h3 { font-size: 1.4rem; }
+    .dream-note { padding: 26px; }
+    .dream-note .file-tag { margin-bottom: 28px; }
+    .contact-profile { gap: 10px; grid-template-columns: 1fr 1fr 18px; }
+    .contact-platform { font-size: 1rem; }
+    .contact-handle { font-size: .75rem; }
+    .contact-arrow { font-size: 1.2rem; }
+    .cursor-arrow { width: 18px; height: 24px; }
+    .cursor-label { font-size: .58rem; }
+    .footer-note { margin-top: 40px; }
+}
+@media (max-width: 380px) {
+    .site-header { padding-inline: 16px; }
+    .main-nav { gap: 0 14px; font-size: .63rem; }
+    .hero { padding-inline: 22px; }
+    .section, .site-footer { padding-inline: 20px; }
+    .study-board { padding: 22px; }
+    .academic-facts { gap: 20px; }
+    .academic-facts dd { font-size: 1.1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .build-cursor, .pointer-glow { display: none; }
+    .hero-note { transform: none; }
+}
+@media print {
+    .site-header, .build-cursor, .pointer-glow, .hero-note, .selection-box, .selection-label { display: none !important; }
+    [style], .type-char { opacity: 1 !important; transform: none !important; }
+    .hero { min-height: auto; }
+    .section, .site-footer { padding-block: 28px; }
+    .project-entry, .experience-entry, .log-entry { break-inside: avoid; }
+}

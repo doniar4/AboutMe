@@ -667,3 +667,9 @@ body { background-size: 32px 32px; }
 .type-char { display: inline-block; }
 .motion-toggle:disabled { cursor: default; opacity: .75; }
 [data-motion="off"] .build-cursor { display: none; }
+
+/* Scene cursors are decorative siblings, never interactive overlays. */
+[data-assemble], .footer-inner { position: relative; }
+[data-assemble] > .scene-cursor { color: var(--mint); }
+[data-assemble] > .scene-cursor .cursor-label { background: var(--mint); color: var(--bg); }
+.section, .site-footer { overflow: clip; }

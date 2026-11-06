@@ -12,8 +12,8 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
-    <title>Daniyar Idirov — doniar4 / code, build, repeat</title>
-    <meta name="description" content="Daniyar Idirov — NIS student, competitive programming and web development. GPA 4.93, AP CSP prep, NIS Hub, and Decentrathon 6.0.">
+    <title>Daniyar Idirov · doniar4 / code, build, repeat</title>
+    <meta name="description" content="Daniyar Idirov · NIS student, competitive programming and web development. GPA 4.93, AP CSP prep, NIS Hub, and Decentrathon 6.0.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -21,6 +21,7 @@
     <noscript><style>.section { opacity: 1; transform: none; }</style></noscript>
 </head>
 <body>
+    <a class="skip-link" href="#about">Skip to content</a>
     <div class="pointer-glow" aria-hidden="true"></div>
 
     <header class="site-header">
@@ -33,6 +34,8 @@
             <a href="#goals">goals.log</a>
             <a href="#contact">contact.sh</a>
         </nav>
+        <div class="header-controls">
+        <button id="motion-toggle" class="motion-toggle" type="button" aria-pressed="false" hidden>Pause motion</button>
         <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme" aria-pressed="false">
             <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/>
@@ -42,46 +45,42 @@
                 <path stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/>
             </svg>
         </button>
+        </div>
     </header>
 
     <main id="top">
 
         <!-- HERO -->
-        <section class="hero">
-            <div class="code-drift" aria-hidden="true">
-                <span style="--x:8%; --delay:0s; --dur:16s;">&lt;div&gt;</span>
-                <span style="--x:20%; --delay:2.4s; --dur:19s;">const</span>
-                <span style="--x:34%; --delay:5s; --dur:14s;">{ }</span>
-                <span style="--x:48%; --delay:1s; --dur:18s;">=&gt;</span>
-                <span style="--x:60%; --delay:7s; --dur:15s;">npm run dev</span>
-                <span style="--x:72%; --delay:3.5s; --dur:20s;">import ai</span>
-                <span style="--x:84%; --delay:6s; --dur:13s;">git push</span>
-                <span style="--x:92%; --delay:0.8s; --dur:17s;">0x1F</span>
-                <span style="--x:15%; --delay:9s; --dur:21s;">async</span>
-                <span style="--x:66%; --delay:11s; --dur:16s;">while(true)</span>
-            </div>
+        <section class="hero" aria-label="Introduction">
             <div class="hero-inner">
-                <p class="terminal-line">
-                    <span class="prompt">daniyar@doniar4</span><span class="path">:~$</span>
-                    <span class="sr-only">Current file: now.md</span>
-                    <span id="typed-command" class="typed" aria-hidden="true">cat now.md</span><span class="cursor" aria-hidden="true"></span>
-                </p>
-                <h1 class="hero-title">Daniyar Idirov</h1>
-                <p class="hero-subtitle">
-                    NIS student. C++ problem sets, web apps, and hardware experiments.
-                    Working on NIS Hub while preparing for AP Computer Science Principles.
-                </p>
-                <div class="hero-actions">
-                    <a href="#contact" class="btn btn-primary">Let’s talk</a>
-                    <a href="#stack" class="btn btn-ghost">My stack</a>
+                <div class="hero-copy">
+                    <p class="terminal-line"><span class="prompt">doniar4</span><span class="path"> / </span>student &amp; developer</p>
+                    <div class="name-frame">
+                        <span class="selection-label" aria-hidden="true">Daniyar / identity</span>
+                        <h1 class="hero-title"><span data-type>Daniyar</span><span data-type>Idirov<span class="name-dot">.</span></span></h1>
+                        <span class="selection-box" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    </div>
+                    <p class="hero-subtitle">C++ problem sets, web apps, and hardware experiments.<br>Making ideas work, one commit at a time.</p>
+                    <div class="hero-actions">
+                        <a href="#projects" class="btn btn-primary">Explore my work <span aria-hidden="true">↘</span></a>
+                        <a href="#contact" class="btn btn-ghost">Let’s talk</a>
+                    </div>
                 </div>
+                <aside class="hero-note" aria-label="Current focus">
+                    <div class="note-tab">now.md <span aria-hidden="true">↗</span></div>
+                    <p class="note-headline">A little curiosity.<br>A lot of building.</p>
+                    <div class="note-code"><span>working_on</span><strong>NIS Hub</strong><span>preparing_for</span><strong>AP CSP</strong></div>
+                    <span class="note-signature">from idea → something real</span>
+                </aside>
+                <div class="build-cursor hero-cursor cursor-author" aria-hidden="true"><span class="cursor-arrow"></span><span class="cursor-label">doniar4</span></div>
+                <div class="build-cursor hero-cursor cursor-layout" aria-hidden="true"><span class="cursor-arrow"></span><span class="cursor-label">layout</span></div>
             </div>
         </section>
 
         <!-- ABOUT -->
         <section id="about" class="section">
             <div class="section-inner">
-                <p class="file-tag">// 01 about.md</p>
+                <p class="file-tag">about.md</p>
                 <h2 class="section-title">Behind the commits</h2>
                 <p class="section-text">
                     Algorithms, data structures, and math take up most of my study time.
@@ -101,7 +100,7 @@
                 <p class="section-text">
                     Python for prototypes, web tools for bringing them to life.
                     My daily workspace is a MacBook. English docs and technical reading
-                    are part of the routine — currently at B2.
+                    are part of the routine · currently at B2.
                 </p>
             </div>
         </section>
@@ -109,7 +108,7 @@
         <!-- PROJECTS -->
         <section id="projects" class="section">
             <div class="section-inner">
-                <p class="file-tag">// 02 projects.ts</p>
+                <p class="file-tag">projects.ts</p>
                 <h2 class="section-title">On the workbench</h2>
                 <div class="project-list">
                     <article class="project-entry">
@@ -118,7 +117,7 @@
                             I work on the interface and platform features.</p>
                         <p class="project-tools">Next.js · TypeScript · Supabase</p>
                         <a href="https://github.com/sNibaAdeka/snibagrades" class="text-link">Team repository <span aria-hidden="true">↗</span></a>
-                        <span class="project-note">Private repo — team access required.</span>
+                        <span class="project-note">Private repo · team access required.</span>
                     </article>
                     <article class="project-entry">
                         <div class="project-heading"><h3>Own device</h3><span class="project-status status-planned">exploring</span></div>
@@ -133,7 +132,7 @@
         <!-- STACK -->
         <section id="stack" class="section section-alt">
             <div class="section-inner">
-                <p class="file-tag">// 03 stack.json</p>
+                <p class="file-tag">stack.json</p>
                 <h2 class="section-title">Tools I work with</h2>
                 <div class="stack-groups">
                     <section class="stack-group" aria-labelledby="stack-languages">
@@ -163,7 +162,7 @@
         <!-- EXPERIENCE -->
         <section id="experience" class="section">
             <div class="section-inner">
-                <p class="file-tag">// 04 experience.log</p>
+                <p class="file-tag">experience.log</p>
                 <h2 class="section-title">Hackathons &amp; pitches</h2>
                 <div class="experience-list">
                 <article class="experience-entry">
@@ -178,7 +177,7 @@
                     <span class="log-status status-completed">participant</span>
                     <div class="log-body">
                         <h3>Idea Battle</h3>
-                        <p>Participated in Idea Battle at regional hubs — another place
+                        <p>Participated in Idea Battle at regional hubs · another place
                             to explore ideas beyond the code editor.</p>
                     </div>
                 </article>
@@ -197,10 +196,10 @@
         <!-- GOALS -->
         <section id="goals" class="section">
             <div class="section-inner">
-                <p class="file-tag">// 05 goals.log</p>
+                <p class="file-tag">goals.log</p>
                 <h2 class="section-title">Next on the roadmap</h2>
                 <div class="dream-note">
-                    <p class="file-tag">// long_term.target</p>
+                    <p class="file-tag">long_term.target</p>
                     <h3>MIT is the long-term target</h3>
                     <p>My dream university is the Massachusetts Institute of Technology.
                         For now: stronger math, better CS fundamentals, AP CSP prep,
@@ -225,7 +224,7 @@
                         <span class="log-status status-planned">planned</span>
                         <div class="log-body">
                             <h3>Build a first AI prototype</h3>
-                            <p>Connect the algorithms, Python, and web pieces into an MVP — from idea to demo.</p>
+                            <p>Connect the algorithms, Python, and web pieces into an MVP · from idea to demo.</p>
                         </div>
                     </li>
                     <li class="log-entry">
@@ -251,7 +250,7 @@
 
     <footer id="contact" class="site-footer">
         <div class="footer-inner">
-            <p class="file-tag">// contact.sh</p>
+            <p class="file-tag">contact.sh</p>
             <h2 class="footer-title">Start a conversation</h2>
             <p class="footer-text">
                 Got a project, a hackathon, or a good problem to work on? I’m in.

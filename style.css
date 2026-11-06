@@ -698,3 +698,26 @@ body { background-size: 32px 32px; }
 .stack-group h3 { font-size: .9rem; }
 .stack-list { gap: 10px 24px; font-size: .86rem; }
 .stack-list li { padding-block: 2px; }
+
+/* ---------- Events, ambitions and the final connection ---------- */
+.experience-list { gap: 0; border-top: 1px solid var(--border); }
+.experience-entry { background: transparent; grid-template-columns: 140px 1fr; border: 0; border-bottom: 1px solid var(--border); padding: 32px 0; gap: 36px; }
+.experience-entry h3 { font-size: 1.6rem; letter-spacing: -.035em; }
+.experience-entry p { font-size: .95rem; }
+.experience-entry .log-status { border: 1px solid var(--border); background: transparent; border-radius: 4px; margin-top: 4px; }
+.roadmap-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 64px; align-items: start; }
+.dream-note { background: var(--mint-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px; margin: 0; }
+.dream-note h3 { font-size: clamp(1.8rem, 3.4vw, 2.7rem); letter-spacing: -.045em; line-height: 1.1; }
+.dream-note p { font-size: .9rem; }
+.dream-note .file-tag { font-size: .68rem; margin-bottom: 40px; }
+.log-entry { grid-template-columns: 1fr; gap: 12px; padding: 0 0 24px; }
+.log-status { justify-self: start; border-radius: 4px; }
+.log-body h3 { font-size: 1.05rem; }
+.log-body p { font-size: .9rem; }
+.site-footer { padding-top: 90px; background: var(--bg-soft); }
+.footer-title { font-size: clamp(2.4rem, 5vw, 4.5rem); letter-spacing: -.055em; line-height: 1.1; max-width: 12ch; }
+.footer-links { margin-top: 44px; }
+.contact-profile { grid-template-columns: 1fr 1fr 30px; min-height: 84px; }
+.contact-platform { font-size: 1.25rem; font-weight: 500; }
+.contact-arrow { font-size: 1.5rem; }
+.footer-note { margin-top: 60px; }

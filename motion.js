@@ -75,11 +75,21 @@
         button.textContent = reduced.matches ? 'Reduced motion' : paused ? 'Play motion' : 'Pause motion';
         button.setAttribute('aria-pressed', String(!enabled));
         if (!enabled) return;
-        context = gsap.context(() => {
-            heroSequence();
-            buildScenes();
-        });
-        ScrollTrigger.refresh();
+        context = gsap.context(() => {});
+        try {
+            context.add(() => {
+                heroSequence();
+                buildScenes();
+            });
+            ScrollTrigger.refresh();
+            if (location.hash) finishTarget(document.getElementById(location.hash.slice(1)));
+        } catch (error) {
+            // Any partial initialization must fail open, never strand hidden content.
+            context.revert();
+            document.documentElement.dataset.motion = 'off';
+            button.hidden = true;
+            console.error('Portfolio motion unavailable:', error);
+        }
     }
     function cursorFor(host, label) {
         let cursor = host.querySelector(':scope > .scene-cursor');
@@ -134,6 +144,27 @@
             sceneTimelines.push({ host: piece, line });
         });
     }
+
+    function finishTarget(target) {
+        if (!target) return;
+        intro?.progress(1);
+        sceneTimelines.forEach(({ host, line }) => {
+            if (host.contains(target) || target.contains(host)) {
+                line.progress(1);
+                line.scrollTrigger?.kill(false);
+            }
+        });
+    }
+    // A keyboard user or an anchor jump always gets fully readable content.
+    document.addEventListener('focusin', event => finishTarget(event.target));
+    document.addEventListener('click', event => {
+        const anchor = event.target.closest('a[href^="#"]');
+        if (anchor) finishTarget(document.getElementById(anchor.getAttribute('href').slice(1)));
+    });
+    window.addEventListener('hashchange', () => finishTarget(document.getElementById(location.hash.slice(1))));
+    document.addEventListener('visibilitychange', () => {
+        if (intro && intro.progress() < 1) intro.paused(document.hidden);
+    });
 
     button.addEventListener('click', () => {
         paused = !paused;

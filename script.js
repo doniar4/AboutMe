@@ -35,7 +35,7 @@
     let frame = 0;
     let x = 0;
     let y = 0;
-    const enabled = () => finePointer.matches && !reducedMotion.matches;
+    const enabled = () => finePointer.matches && !reducedMotion.matches && document.documentElement.dataset.motion !== 'off';
 
     function hide() {
         if (frame) cancelAnimationFrame(frame);

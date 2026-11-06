@@ -786,3 +786,10 @@ body { background-size: 32px 32px; }
     .section, .site-footer { padding-block: 28px; }
     .project-entry, .experience-entry, .log-entry { break-inside: avoid; }
 }
+
+[data-motion="off"] .pointer-glow { display: none; }
+[data-motion="off"] .hero-note { transform: none; }
+@media (max-width: 767px) {
+    .main-nav { column-gap: 12px; row-gap: 0; }
+    .main-nav a { min-height: 36px; display: inline-flex; align-items: center; }
+}

@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "python3 scripts/serve.py",
     "vendor": "node scripts/vendor.mjs",
-    "check": "node --check script.js && node --check assembly.js && node --check motion.js",
+    "check": "node --check script.js && node --check swarm.js && node --check assembly.js && node --check motion.js",
     "test": "playwright test"
   },
   "dependencies": {

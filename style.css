@@ -826,3 +826,93 @@ body { background-size: 32px 32px; }
 .hero-note { transform: none; }
 .name-frame { padding: 10px 16px; margin-left: -16px; }
 .hero-actions > .assembly-outline { border-radius: 5px; }
+
+/* ---------- Swarm: many small cursors from one origin ---------- */
+/* Layers inside a scene: content 1, construction frame 2, swarm 5. */
+.swarm-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.swarm-layer .tone-0 { --tone: var(--accent); --tag-ink: #14100a; }
+.swarm-layer .tone-1 { --tone: var(--mint); --tag-ink: var(--bg); }
+.swarm-layer .tone-2 { --tone: var(--text); --tag-ink: var(--bg); }
+.swarm-layer .tone-3 { --tone: color-mix(in srgb, var(--accent) 55%, var(--text)); --tag-ink: var(--bg); }
+.swarm-cursor, .swarm-ripple, .swarm-caret { color: var(--tone); }
+
+.swarm-cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: translate, transform; }
+.swarm-body { position: absolute; left: 0; top: 0; transform-origin: 0 0; scale: calc(1 - var(--press, 0) * .14); }
+.swarm-arrow {
+    position: absolute; overflow: visible;
+    left: calc(-1.5px * var(--size, 1)); top: calc(-1.5px * var(--size, 1));
+    width: calc(16px * var(--size, 1)); height: calc(21px * var(--size, 1));
+    filter: drop-shadow(0 1.5px 1.5px rgb(0 0 0 / .32));
+}
+.swarm-arrow path { fill: currentColor; stroke: var(--bg); stroke-width: 1.4; stroke-linejoin: round; paint-order: stroke; }
+/* The press ring sits on the hotspot, so a click visibly lands on the tip. */
+.swarm-ring {
+    position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid currentColor; background: color-mix(in srgb, currentColor 16%, transparent);
+    opacity: var(--press, 0); scale: calc(.35 + var(--press, 0) * .65);
+}
+.swarm-trail {
+    position: absolute; left: 0; top: 0; width: 0; height: 2px; margin-top: -1px;
+    transform-origin: 0 50%; border-radius: 2px; opacity: 0;
+    background: linear-gradient(90deg, color-mix(in srgb, currentColor 75%, transparent), transparent);
+}
+.swarm-tag {
+    position: absolute; left: calc(13px * var(--size, 1)); top: calc(17px * var(--size, 1));
+    padding: 1px 6px 2px; border-radius: 2px 7px 7px 7px; background: currentColor;
+    font: 500 .56rem/1.4 var(--font-mono); letter-spacing: .02em; white-space: nowrap; opacity: 0;
+    box-shadow: 0 1px 2px rgb(0 0 0 / .25);
+}
+.swarm-tag::after { content: attr(data-role); color: var(--tag-ink); }
+
+.swarm-caret { position: absolute; left: 0; top: 0; width: 2px; height: 1em; border-radius: 1px; background: currentColor; opacity: 0; }
+.swarm-ripple {
+    position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%;
+    border: 1.5px solid currentColor; opacity: 0;
+}
+
+/* The single origin every cursor leaves from and returns to. */
+.swarm-hub { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; }
+.swarm-hub-core {
+    position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.swarm-hub-halo {
+    position: absolute; left: -18px; top: -18px; width: 36px; height: 36px; border-radius: 50%;
+    border: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+    animation: swarm-turn 7s linear infinite;
+}
+@keyframes swarm-turn { to { rotate: 360deg; } }
+
+/* Selection marquee dragged out by a cursor, with a live size readout. */
+.swarm-marquee {
+    position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0;
+    border: 1px solid var(--mint); background: color-mix(in srgb, var(--mint) 9%, transparent);
+}
+.swarm-size {
+    position: absolute; left: -1px; top: calc(100% + 5px); padding: 1px 5px; border-radius: 2px;
+    background: var(--mint); color: var(--bg); font: 500 .55rem/1.5 var(--font-mono); white-space: nowrap;
+}
+
+/* Construction guides drawn inside a panel: four handles and four edges. */
+.assembly-frame { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.assembly-frame b { position: absolute; background: var(--mint); }
+.assembly-frame b:nth-of-type(1) { left: 0; top: 0; width: 100%; height: 1px; }
+.assembly-frame b:nth-of-type(2) { right: 0; top: 0; width: 1px; height: 100%; }
+.assembly-frame b:nth-of-type(3) { left: 0; bottom: 0; width: 100%; height: 1px; }
+.assembly-frame b:nth-of-type(4) { left: 0; top: 0; width: 1px; height: 100%; }
+.assembly-frame i {
+    position: absolute; width: 7px; height: 7px; margin: -3px 0 0 -3px;
+    background: var(--bg); border: 1.5px solid var(--mint);
+}
+.assembly-frame i:nth-of-type(1) { left: 0; top: 0; }
+.assembly-frame i:nth-of-type(2) { left: 100%; top: 0; }
+.assembly-frame i:nth-of-type(3) { left: 100%; top: 100%; }
+.assembly-frame i:nth-of-type(4) { left: 0; top: 100%; }
+
+[data-motion="off"] .swarm-layer, [data-motion="off"] .assembly-frame { display: none; }
+@media (prefers-reduced-motion: reduce) {
+    .swarm-layer, .assembly-frame { display: none; }
+}
+@media print {
+    .swarm-layer, .assembly-frame { display: none !important; }
+}

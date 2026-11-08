@@ -2,7 +2,7 @@
    without JS, with reduced motion, or if the animation runtime fails to load. */
 (() => {
     const button = document.getElementById('motion-toggle');
-    if (!window.gsap || !window.ScrollTrigger || !window.PortfolioAssembly) return;
+    if (!window.gsap || !window.ScrollTrigger || !window.Swarm || !window.Construct || !window.PortfolioAssembly) return;
     gsap.registerPlugin(ScrollTrigger);
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     let paused = false;
@@ -12,26 +12,54 @@
     const sceneTimelines = [];
 
     const measurements = [];
+    const stages = [];
 
+    /* The introduction: one origin between the name and the note card. Eighteen
+       cursors burst out of it at once, each with its own job, and fly home when
+       the hero is assembled. */
     function heroSequence() {
-        intro = gsap.timeline();
-        const jobs = [
-            ['.name-frame', { corner: 0, textSelector: '[data-type]', typeDuration: .7 }, 0],
-            ['.hero-note', { corner: 1, textSelector: '.note-tab, .note-headline, .note-code span, .note-code strong, .note-signature', typeDuration: 1 }, .2],
-            ['.hero-subtitle', { corner: 2, selfText: true, typeDuration: .8 }, .45],
-            ['.hero-actions', { corner: 3, textSelector: '.no-typing', typeDuration: 0 }, .7],
-        ];
-        jobs.forEach(([selector, options, at]) => {
-            const job = PortfolioAssembly.create(document.querySelector(selector), options);
-            measurements.push(job.measure);
-            intro.add(job.line.play(), at);
+        const inner = document.querySelector('.hero-inner');
+        const stage = Swarm.stage(inner, { seed: 4093 });
+        stages.push(stage);
+        measurements.push(stage.measure);
+        const wide = () => innerWidth > 767;
+        stage.setOrigin(() => {
+            const r = stage.rect(inner);
+            return wide() ? { x: r.w * .615, y: r.h * .5 } : { x: r.w * .5, y: r.h * .4 };
         });
-        intro.fromTo('.terminal-line', { opacity: 0 }, { opacity: 1, duration: .25 }, .1);
+        const C = Construct;
+        const terminal = C.prepare(document.querySelector('.terminal-line'), { self: true, mode: 'bare' });
+        const name = C.prepare(document.querySelector('.name-frame'), { mode: 'outline', texts: '[data-type]' });
+        const subtitle = C.prepare(document.querySelector('.hero-subtitle'), { self: true, mode: 'bare' });
+        const actions = C.prepare(document.querySelector('.hero-actions'), { mode: 'bare', texts: '.no-typing', chips: '.btn' });
+        const note = C.prepare(document.querySelector('.hero-note'), {
+            texts: '.note-tab, .note-headline, .note-code span, .note-code strong, .note-signature',
+        });
+
+        const t = .25;
+        [terminal, subtitle, actions].forEach(part => C.reveal(stage, part, t));
+        C.write(stage, terminal.texts, t, { typists: 1, perChar: .03, fresh: true });
+        const framed = C.frame(stage, name, t + .04, { fill: false, fresh: true });
+        C.reveal(stage, name, framed.built - .1);
+        // The large name is typed by two cursors, one per line.
+        const named = C.write(stage, name.texts, framed.built - .1, { typists: 2, perChar: .085, fresh: true });
+        C.fold(stage, name, named + .1);
+        const noted = C.frame(stage, note, t + .1, { fresh: true });
+        C.reveal(stage, note, noted.built);
+        C.write(stage, note.texts, noted.built + .02, { typists: 3, perChar: .026, fresh: true });
+        const subtitled = C.write(stage, subtitle.texts, t + .5, { typists: 2, perChar: .021, fresh: true });
+        actions.chips.forEach((chip, i) => C.stamp(stage, chip, Math.min(subtitled, 1.5) + i * .16, { fresh: true }));
+
+        stage.finish();
+        intro = stage.timeline;
+        intro.timeScale(1.2).play();
         if (location.hash || window.scrollY > 20) intro.progress(1);
     }
 
     function start() {
         context?.revert();
+        stages.forEach(stage => stage.destroy());
+        stages.length = 0;
         sceneTimelines.length = 0;
         measurements.length = 0;
         const enabled = !paused && !reduced.matches;

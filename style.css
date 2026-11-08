@@ -916,3 +916,8 @@ body { background-size: 32px 32px; }
 @media print {
     .swarm-layer, .assembly-frame { display: none !important; }
 }
+
+/* Panels draw their own surface while motion runs: no shadow before it exists. */
+[data-motion="on"] .assembly-host { box-shadow: none; }
+.hero-note > .assembly-surface { box-shadow: 0 20px 60px #00000018; }
+.footer-inner { position: relative; }

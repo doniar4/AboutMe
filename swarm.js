@@ -63,11 +63,14 @@ window.Swarm = (() => {
         container.append(layer);
         const hub = document.createElement('span');
         hub.className = 'swarm-hub';
-        hub.innerHTML = '<span class="swarm-hub-halo"></span><span class="swarm-hub-core"></span>';
+        hub.innerHTML = '<span class="swarm-hub-halo"></span><span class="swarm-hub-core"></span>'
+            + '<span class="swarm-hub-count"></span>';
         layer.append(hub);
 
         const timeline = gsap.timeline({ paused: true });
         const cursors = [];
+        // Every working life of a cursor, for the live counter beside the origin.
+        const lives = [];
         const cache = new Map();
         let base = null;
         let originAt = () => ({ x: 0, y: 0 });
@@ -252,6 +255,8 @@ window.Swarm = (() => {
             }
             const origin = () => originAt(at);
             c.retired = false;
+            c.life = { from: at, to: Infinity };
+            lives.push(c.life);
             c.pos = origin;
             c.free = at;
             timeline.call(() => place(c, origin()), null, at)
@@ -270,7 +275,10 @@ window.Swarm = (() => {
             const home = () => originAt(arrival);
             arrival = move(c, home, start, { ease: pick(['power2.inOut', 'power3.in', 'sine.inOut']) });
             timeline.to(c.el, { opacity: 0, scale: 0, duration: .16, ease: 'power2.in' }, arrival - .06);
+            // The origin answers each returning cursor with a small inward ring.
+            ripple(home, arrival - .04, c.tone, .55);
             c.busy[c.busy.length - 1].kind = 'home';
+            c.life.to = arrival;
             c.retired = true;
             c.away = arrival + .12;
             return c.away;
@@ -314,11 +322,18 @@ window.Swarm = (() => {
             });
             const end = Math.max(0, ...cursors.map(c => c.away || 0));
             const start = Number.isFinite(firstSpawn) ? Math.max(0, firstSpawn - .2) : 0;
-            const halo = hub.firstElementChild;
+            const [halo, , counter] = hub.children;
             const where = { t: 0 };
+            let shown = -1;
             const placeHub = () => {
                 const p = originAt(where.t);
                 hub.style.translate = `${p.x.toFixed(1)}px ${p.y.toFixed(1)}px`;
+                const out = lives.reduce((n, life) => n + (life.from <= where.t && where.t < life.to), 0);
+                if (out !== shown) {
+                    counter.textContent = `×${out}`;
+                    counter.classList.toggle('is-empty', out === 0);
+                    shown = out;
+                }
             };
             gsap.set(hub, { opacity: 0, scale: 0 });
             timeline.to(where, { t: end, duration: end, ease: 'none', onUpdate: placeHub }, 0)

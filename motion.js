@@ -13,6 +13,7 @@
 
     const measurements = [];
     const stages = [];
+    const listeners = [];
 
     /* The introduction: one origin between the name and the note card. Eighteen
        cursors burst out of it at once, each with its own job, and fly home when
@@ -54,10 +55,20 @@
         intro = stage.timeline;
         intro.timeScale(1.2).play();
         if (location.hash || window.scrollY > 20) intro.progress(1);
+        // A reader who starts scrolling is not kept waiting: the crew speeds up.
+        const hurry = () => {
+            if (window.scrollY < 40 || !intro || intro.progress() === 1) return;
+            gsap.to(intro, { timeScale: 3.2, duration: .4, overwrite: true });
+            window.removeEventListener('scroll', hurry);
+        };
+        window.addEventListener('scroll', hurry, { passive: true });
+        listeners.push(() => window.removeEventListener('scroll', hurry));
     }
 
     function start() {
         context?.revert();
+        listeners.forEach(remove => remove());
+        listeners.length = 0;
         stages.forEach(stage => stage.destroy());
         stages.length = 0;
         sceneTimelines.length = 0;

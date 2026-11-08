@@ -850,6 +850,13 @@ body { background-size: 32px 32px; }
     animation: swarm-turn 7s linear infinite;
 }
 @keyframes swarm-turn { to { rotate: 360deg; } }
+/* How many cursors are out working right now. */
+.swarm-hub-count {
+    position: absolute; left: 0; bottom: 14px; translate: -50% 0;
+    font: 500 .56rem/1 var(--font-mono); color: var(--accent); letter-spacing: .04em;
+    white-space: nowrap; transition: opacity .2s ease;
+}
+.swarm-hub-count.is-empty { opacity: 0; }
 
 /* Selection marquee dragged out by a cursor, with a live size readout. */
 .swarm-marquee {

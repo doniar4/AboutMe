@@ -2,7 +2,7 @@
    without JS, with reduced motion, or if the animation runtime fails to load. */
 (() => {
     const button = document.getElementById('motion-toggle');
-    if (!window.gsap || !window.ScrollTrigger || !window.Swarm || !window.Construct || !window.PortfolioAssembly) return;
+    if (!window.gsap || !window.ScrollTrigger || !window.Swarm || !window.Construct) return;
     gsap.registerPlugin(ScrollTrigger);
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     let paused = false;
@@ -85,26 +85,89 @@
             console.error('Portfolio motion unavailable:', error);
         }
     }
+    /* Section scenes. Scene time is tied to scroll distance (PIXELS_PER_SECOND), so
+       work can be scheduled by height: a panel starts building as it enters the
+       viewport, whatever the section's length or the screen size. */
+    const PIXELS_PER_SECOND = 115;
+    const LOOSE_TEXT = ':scope > .footer-text, .about-copy > .section-text';
+
     function buildScenes() {
-        const headed = new Set();
-        document.querySelectorAll('[data-assemble]').forEach((piece, index) => {
-            const section = piece.closest('.section-inner, .footer-inner');
-            const heading = headed.has(section) ? null : section.querySelector('h2');
-            headed.add(section);
-            const job = PortfolioAssembly.create(piece, { corner: index % 4, heading });
-            measurements.push(job.measure);
-            ScrollTrigger.create({
-                animation: job.line,
-                trigger: heading || piece,
-                endTrigger: piece,
-                start: 'top 92%',
-                end: 'clamp(top 38%)',
-                scrub: .2,
-                invalidateOnRefresh: true,
-            });
-            // The first cursor writes the section heading, then builds its panel.
-            sceneTimelines.push({ host: heading ? section : piece, line: job.line });
+        document.querySelectorAll('.section-inner, .footer-inner').forEach(sectionScene);
+    }
+
+    function sectionScene(inner, index) {
+        const stage = Swarm.stage(inner, { seed: 9001 + index * 7919 });
+        stages.push(stage);
+        const C = Construct;
+        const tag = inner.querySelector(':scope > .file-tag');
+        let top = 0;
+        const measureTop = () => { top = inner.getBoundingClientRect().top + window.scrollY; };
+        measureTop();
+        measurements.push(stage.measure, measureTop);
+
+        let duration = 0;
+        let trigger = null;
+        const range = () => {
+            const max = ScrollTrigger.maxScroll(window);
+            const distance = duration * PIXELS_PER_SECOND;
+            let start = Math.max(0, top - innerHeight * .85);
+            const end = Math.min(start + distance, max);
+            // Near the end of the page a scene still gets room to finish.
+            if (end - start < Math.min(distance, 320)) start = Math.max(0, end - Math.min(distance, 320));
+            return { start, end };
+        };
+        // The origin starts beside the file name, then follows the reader down the
+        // section a quarter of the way into the viewport, like a sticky point.
+        stage.setOrigin(time => {
+            const r = stage.rect(tag);
+            const box = stage.rect(inner);
+            const span = trigger ? { start: trigger.start, end: trigger.end } : null;
+            const scroll = span && duration
+                ? span.start + (span.end - span.start) * Math.min(1, time / duration)
+                : top - innerHeight * .85 + time * PIXELS_PER_SECOND;
+            const follow = scroll - top + innerHeight * .24;
+            return { x: r.x - 18, y: Math.min(box.h - 24, Math.max(r.y + r.h / 2, follow)) };
         });
+
+        const jobs = [];
+        const heading = inner.querySelector('h2');
+        C.split(heading);
+        gsap.set(heading.querySelectorAll('.type-char'), { opacity: 0 });
+        jobs.push({ el: heading, run: at => C.write(stage, [heading], at, { perChar: .034 }) });
+        inner.querySelectorAll(LOOSE_TEXT).forEach(el => {
+            const part = C.prepare(el, { self: true, mode: 'bare' });
+            jobs.push({ el, run: at => { C.reveal(stage, part, at); return C.write(stage, part.texts, at, { perChar: .014 }); } });
+        });
+        let shellBuilt = 0;
+        inner.querySelectorAll('[data-shell]').forEach(el => {
+            const part = C.prepare(el, { shell: true });
+            jobs.push({ el, order: -1, run: at => (shellBuilt = C.frame(stage, part, at).built) });
+        });
+        inner.querySelectorAll('[data-assemble]').forEach(el => {
+            const part = C.prepare(el);
+            const inShell = el.parentElement.closest('[data-shell]');
+            jobs.push({ el, run: at => C.panel(stage, part, inShell ? Math.max(at, shellBuilt) : at) });
+        });
+
+        jobs.forEach(job => { job.y = stage.rect(job.el).y; });
+        jobs.sort((a, b) => a.y - b.y || (a.order || 0) - (b.order || 0));
+        let previous = 0;
+        jobs.forEach(job => {
+            const at = Math.max(previous + .12, .15, (job.y - innerHeight * .12) / PIXELS_PER_SECOND);
+            job.run(at);
+            previous = at;
+        });
+        duration = stage.finish();
+
+        trigger = ScrollTrigger.create({
+            animation: stage.timeline,
+            trigger: inner,
+            start: () => range().start,
+            end: () => range().end,
+            scrub: .5,
+            invalidateOnRefresh: true,
+        });
+        sceneTimelines.push({ host: inner, line: stage.timeline });
     }
 
     function finishTarget(target) {

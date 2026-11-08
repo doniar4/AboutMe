@@ -140,8 +140,8 @@ window.Swarm = (() => {
             const shape = straight ? null : route(from, to, launch);
             if (!duration) {
                 const a = from(), b = to();
-                duration = clamp(.3 + Math.hypot(b.x - a.x, b.y - a.y) / 1050, .34, 1.3) * between(.85, 1.2);
-                if (launch) duration += .12;
+                duration = clamp(.24 + Math.hypot(b.x - a.x, b.y - a.y) / 1400, .3, 1.05) * between(.85, 1.18);
+                if (launch) duration += .1;
             }
             const easing = gsap.parseEase(ease || (straight ? 'power2.inOut' : pick(FLIGHT_EASES)));
             function position(u, path) {

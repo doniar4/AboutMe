@@ -626,13 +626,6 @@ body { background-size: 32px 32px; }
 .hero-title { display: grid; font-size: clamp(4.5rem, 8.5vw, 7.5rem); line-height: .98; letter-spacing: -.065em; margin: 0; font-weight: 600; }
 .hero-title > span { display: block; width: fit-content; }
 .name-dot { color: var(--accent); }
-.selection-box { position: absolute; inset: -14px -24px; border: 1px solid var(--accent); pointer-events: none; }
-.selection-box i { position: absolute; width: 7px; height: 7px; background: var(--bg); border: 1px solid var(--accent); }
-.selection-box i:nth-child(1) { top: -4px; left: -4px; }
-.selection-box i:nth-child(2) { top: -4px; right: -4px; }
-.selection-box i:nth-child(3) { bottom: -4px; left: -4px; }
-.selection-box i:nth-child(4) { bottom: -4px; right: -4px; }
-.selection-label { position: absolute; bottom: calc(100% + 14px); right: -24px; background: var(--accent); color: #14100a; padding: 3px 8px; font: .6rem/1.6 var(--font-mono); }
 .hero-subtitle { font-size: .95rem; max-width: 45ch; margin-bottom: 26px; }
 .hero-actions { gap: 12px; }
 .btn { font-size: .85rem; padding: 12px 20px; gap: 30px; border-radius: 5px; }
@@ -643,9 +636,6 @@ body { background-size: 32px 32px; }
 .note-code span { color: var(--text-muted); }
 .note-code strong { color: var(--mint); font-weight: 400; }
 .note-signature { display: block; font: .62rem var(--font-mono); color: var(--text-muted); margin-top: 28px; }
-.build-cursor { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; color: var(--accent); opacity: 0; }
-.cursor-arrow { display: block; width: 24px; height: 30px; background: currentColor; clip-path: polygon(0 0, 100% 70%, 53% 73%, 30% 100%); filter: drop-shadow(0 1px 0 var(--bg)); }
-.cursor-layout { color: var(--mint); }
 .section { padding-block: clamp(80px, 12vw, 160px); }
 .section-inner { position: relative; }
 .section-title { font-size: clamp(2rem, 4vw, 3.6rem); font-weight: 500; line-height: 1.1; margin-bottom: 36px; }
@@ -657,11 +647,8 @@ body { background-size: 32px 32px; }
 .type-word { display: inline-block; white-space: nowrap; }
 .type-char { display: inline-block; }
 .motion-toggle:disabled { cursor: default; opacity: .75; }
-[data-motion="off"] .build-cursor { display: none; }
 
-/* Scene cursors are decorative siblings, never interactive overlays. */
 [data-assemble], .footer-inner { position: relative; }
-[data-assemble] > .scene-cursor { color: var(--mint); }
 .section, .site-footer { overflow: clip; }
 
 /* ---------- Profile and work: different rhythms on one canvas ---------- */
@@ -734,8 +721,6 @@ body { background-size: 32px 32px; }
     .hero-subtitle br { display: none; }
     .hero-actions { gap: 10px; }
     .btn { padding: 12px 16px; font-size: .8rem; gap: 12px; }
-    .selection-box { inset: -10px -12px; }
-    .selection-label { bottom: calc(100% + 10px); right: -12px; }
     .section, .site-footer { padding-inline: 24px; padding-block: 72px; scroll-margin-top: 140px; }
     .section-title { font-size: clamp(2rem, 7vw, 3rem); }
     .about-layout, .project-list, .roadmap-grid { grid-template-columns: 1fr; gap: 28px; }
@@ -752,7 +737,6 @@ body { background-size: 32px 32px; }
     .contact-platform { font-size: 1rem; }
     .contact-handle { font-size: .75rem; }
     .contact-arrow { font-size: 1.2rem; }
-    .cursor-arrow { width: 18px; height: 24px; }
     .footer-note { margin-top: 40px; }
 }
 @media (max-width: 380px) {
@@ -765,11 +749,11 @@ body { background-size: 32px 32px; }
     .academic-facts dd { font-size: 1.1rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .build-cursor, .pointer-glow { display: none; }
+    .pointer-glow { display: none; }
     .hero-note { transform: none; }
 }
 @media print {
-    .site-header, .build-cursor, .pointer-glow, .hero-note, .selection-box, .selection-label { display: none !important; }
+    .site-header, .pointer-glow, .hero-note { display: none !important; }
     [style], .type-char { opacity: 1 !important; transform: none !important; }
     .hero { min-height: auto; }
     .section, .site-footer { padding-block: 28px; }
@@ -783,27 +767,13 @@ body { background-size: 32px 32px; }
     .main-nav a { min-height: 36px; display: inline-flex; align-items: center; }
 }
 
-/* Small anonymous tools, with a press ring only while gripping a handle. */
-.cursor-arrow { width: 14px; height: 18px; }
-.build-cursor::after {
-    content: ""; position: absolute; width: 18px; height: 18px;
-    left: -9px; top: -9px; border: 1px solid currentColor; border-radius: 50%;
-    opacity: var(--pressed, 0); transform: scale(var(--pressed, 0));
-}
 .pointer-glow { transition: opacity 400ms ease; }
 
 /* The surface grows separately from text, which keeps its final metrics. */
 .assembly-host { position: relative; isolation: isolate; }
 [data-motion="on"] .assembly-host { background: transparent; border-color: transparent; }
-.assembly-surface, .assembly-outline { position: absolute; inset: 0; opacity: 0; border-radius: inherit; pointer-events: none; }
+.assembly-surface { position: absolute; inset: 0; opacity: 0; border-radius: inherit; pointer-events: none; }
 .assembly-surface { z-index: -1; background: var(--bg-soft); border: 1px solid var(--border); }
-.assembly-outline { z-index: 2; border: 1px solid var(--mint); }
-.assembly-outline i { position: absolute; width: 5px; height: 5px; background: var(--bg); border: 1px solid var(--mint); }
-.assembly-outline i:nth-child(1) { left: -3px; top: -3px; }
-.assembly-outline i:nth-child(2) { right: -3px; top: -3px; }
-.assembly-outline i:nth-child(3) { left: -3px; bottom: -3px; }
-.assembly-outline i:nth-child(4) { right: -3px; bottom: -3px; }
-.typing-caret { position: absolute; left: 0; top: 0; width: 1px; background: var(--mint); opacity: 0; pointer-events: none; z-index: 2; }
 .project-entry:first-child > .assembly-surface { background: color-mix(in srgb, var(--mint) 7%, var(--bg)); }
 .dream-note > .assembly-surface { background: var(--mint-soft); }
 .stack-group > .assembly-surface, .experience-entry > .assembly-surface,
@@ -812,20 +782,18 @@ body { background-size: 32px 32px; }
 }
 .stack-group:last-child > .assembly-surface, .log-entry:last-child > .assembly-surface { border: 0; }
 .name-frame > .assembly-surface, .hero-subtitle > .assembly-surface, .hero-actions > .assembly-surface { background: transparent; border: 0; }
-[data-motion="off"] .assembly-surface, [data-motion="off"] .assembly-outline,
-[data-motion="off"] .typing-caret { display: none; }
+[data-motion="off"] .assembly-surface { display: none; }
 @media (prefers-reduced-motion: reduce) {
-    .assembly-surface, .assembly-outline, .typing-caret { display: none; }
+    .assembly-surface { display: none; }
 }
 @media print {
-    .assembly-surface, .assembly-outline, .typing-caret { display: none !important; }
+    .assembly-surface { display: none !important; }
     [data-motion="on"] .assembly-host { border-color: var(--border); }
 }
 
 /* A drawn surface has no rotation: its corner and the cursor coincide. */
 .hero-note { transform: none; }
 .name-frame { padding: 10px 16px; margin-left: -16px; }
-.hero-actions > .assembly-outline { border-radius: 5px; }
 
 /* ---------- Swarm: many small cursors from one origin ---------- */
 /* Layers inside a scene: content 1, construction frame 2, swarm 5. */

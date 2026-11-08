@@ -847,9 +847,7 @@ body { background-size: 32px 32px; }
 .swarm-hub-halo {
     position: absolute; left: -18px; top: -18px; width: 36px; height: 36px; border-radius: 50%;
     border: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
-    animation: swarm-turn 7s linear infinite;
 }
-@keyframes swarm-turn { to { rotate: 360deg; } }
 /* How many cursors are out working right now. */
 .swarm-hub-count {
     position: absolute; left: 0; bottom: 14px; translate: -50% 0;
@@ -890,6 +888,7 @@ body { background-size: 32px 32px; }
 }
 @media print {
     .swarm-layer, .assembly-frame { display: none !important; }
+    [style] { clip-path: none !important; }
 }
 
 /* Panels draw their own surface while motion runs: no shadow before it exists. */

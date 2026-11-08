@@ -14,6 +14,8 @@
     const measurements = [];
     const stages = [];
     const listeners = [];
+    let introDone = false;
+    let builtWidth = 0;
 
     /* The introduction: one origin between the name and the note card. Eighteen
        cursors burst out of it at once, each with its own job, and fly home when
@@ -53,8 +55,9 @@
 
         stage.finish();
         intro = stage.timeline;
+        intro.eventCallback('onComplete', () => { introDone = true; });
         intro.timeScale(1.2).play();
-        if (location.hash || window.scrollY > 20) intro.progress(1);
+        if (introDone || location.hash || window.scrollY > 20) intro.progress(1);
         // A reader who starts scrolling is not kept waiting: the crew speeds up.
         const hurry = () => {
             if (window.scrollY < 40 || !intro || intro.progress() === 1) return;
@@ -80,6 +83,7 @@
         button.textContent = reduced.matches ? 'Reduced motion' : paused ? 'Play motion' : 'Pause motion';
         button.setAttribute('aria-pressed', String(!enabled));
         if (!enabled) return;
+        builtWidth = innerWidth;
         context = gsap.context(() => {});
         try {
             context.add(() => {
@@ -137,7 +141,9 @@
                 ? span.start + (span.end - span.start) * Math.min(1, time / duration)
                 : top - innerHeight * .85 + time * PIXELS_PER_SECOND;
             const follow = scroll - top + innerHeight * .24;
-            return { x: r.x - 18, y: Math.min(box.h - 24, Math.max(r.y + r.h / 2, follow)) };
+            // On phones the gutter is narrow: never let the origin leave the screen.
+            const left = stage.rect(document.documentElement).x + 14;
+            return { x: Math.max(left, r.x - 18), y: Math.min(box.h - 24, Math.max(r.y + r.h / 2, follow)) };
         });
 
         const jobs = [];
@@ -208,6 +214,18 @@
         start();
     });
     reduced.addEventListener('change', start);
+    /* Line breaks and the order of work depend on the width, so a real width change
+       rebuilds the scenes. Height-only changes (mobile toolbars) only re-measure. */
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (document.documentElement.dataset.motion === 'on' && Math.abs(innerWidth - builtWidth) > 40) {
+                if (intro && intro.progress() > .98) introDone = true;
+                start();
+            }
+        }, 350);
+    });
     ScrollTrigger.addEventListener('refreshInit', () => measurements.forEach(measure => measure()));
     start();
     document.fonts?.ready.then(() => ScrollTrigger.refresh());

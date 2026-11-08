@@ -338,7 +338,11 @@ window.Swarm = (() => {
             gsap.set(hub, { opacity: 0, scale: 0 });
             timeline.to(where, { t: end, duration: end, ease: 'none', onUpdate: placeHub }, 0)
                 .to(hub, { opacity: 1, scale: 1, duration: .25, ease: 'back.out(2.2)' }, start)
-                .fromTo(halo, { scale: .6 }, { scale: 1.25, duration: Math.max(.3, end - start - .3), ease: 'sine.inOut', immediateRender: false }, start)
+                // The halo turns with scene time, so it also turns back when scrubbed.
+                .fromTo(halo, { scale: .6, rotate: 0 }, {
+                    scale: 1.25, rotate: 50 * (end - start), duration: Math.max(.3, end - start - .3),
+                    ease: 'sine.inOut', immediateRender: false,
+                }, start)
                 .to(hub, { opacity: 0, scale: 0, duration: .22, ease: 'power2.in' }, Math.max(start + .3, end - .1));
             placeHub();
             return Math.max(end + .15, timeline.duration());

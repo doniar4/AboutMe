@@ -215,22 +215,6 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 .prompt { color: var(--mint); }
 .path { color: var(--text-muted); }
-.typed { color: var(--accent); }
-
-.cursor {
-    display: inline-block;
-    width: 2px;
-    height: 1em;
-    background: var(--accent);
-    margin-left: 2px;
-    vertical-align: text-bottom;
-    animation: blink 1s step-end infinite;
-}
-
-@keyframes blink {
-    50% { opacity: 0; }
-}
-
 .hero-title {
     font-family: var(--font-display);
     font-size: clamp(2.5rem, 7vw, 4.5rem);
@@ -578,9 +562,6 @@ ul { list-style: none; margin: 0; padding: 0; }
     outline-offset: 5px;
     border-radius: 2px;
 }
-@media (prefers-reduced-motion: reduce) {
-    .cursor { animation: none; opacity: .65; }
-}
 
 /* Tool names are content, not proficiency badges. */
 .stack-list {
@@ -622,9 +603,9 @@ body { background-size: 32px 32px; }
 .hero-inner { display: grid; grid-template-columns: 1.65fr 1fr; gap: 70px; align-items: center; }
 .hero-copy { min-width: 0; }
 .terminal-line { font-size: .75rem; margin-bottom: 28px; }
-.name-frame { position: relative; width: fit-content; margin-bottom: 30px; }
-.hero-title { display: grid; font-size: clamp(4.5rem, 8.5vw, 7.5rem); line-height: .98; letter-spacing: -.065em; margin: 0; font-weight: 600; }
-.hero-title > span { display: block; width: fit-content; }
+.hero-title { display: grid; font-size: clamp(4.5rem, 8.5vw, 7.5rem); line-height: .98; letter-spacing: -.065em; margin: 0 0 30px; font-weight: 600; }
+.name-line { display: block; width: fit-content; }
+.name-word, .name-dot { display: inline-block; }
 .name-dot { color: var(--accent); }
 .hero-subtitle { font-size: .95rem; max-width: 45ch; margin-bottom: 26px; }
 .hero-actions { gap: 12px; }
@@ -643,12 +624,8 @@ body { background-size: 32px 32px; }
 .section-alt { background: transparent; border: 0; }
 .section-text { font-size: 1rem; }
 
-/* Character boxes reserve full text width while the cursors type. */
-.type-word { display: inline-block; white-space: nowrap; }
-.type-char { display: inline-block; }
 .motion-toggle:disabled { cursor: default; opacity: .75; }
 
-[data-assemble], .footer-inner { position: relative; }
 .section, .site-footer { overflow: clip; }
 
 /* ---------- Profile and work: different rhythms on one canvas ---------- */
@@ -754,7 +731,7 @@ body { background-size: 32px 32px; }
 }
 @media print {
     .site-header, .pointer-glow, .hero-note { display: none !important; }
-    [style], .type-char { opacity: 1 !important; transform: none !important; }
+    [style], [data-stage] { opacity: 1 !important; transform: none !important; clip-path: none !important; }
     .hero { min-height: auto; }
     .section, .site-footer { padding-block: 28px; }
     .project-entry, .experience-entry, .log-entry { break-inside: avoid; }
@@ -769,129 +746,58 @@ body { background-size: 32px 32px; }
 
 .pointer-glow { transition: opacity 400ms ease; }
 
-/* The surface grows separately from text, which keeps its final metrics. */
-.assembly-host { position: relative; isolation: isolate; }
-[data-motion="on"] .assembly-host { background: transparent; border-color: transparent; }
-.assembly-surface { position: absolute; inset: 0; opacity: 0; border-radius: inherit; pointer-events: none; }
-.assembly-surface { z-index: -1; background: var(--bg-soft); border: 1px solid var(--border); }
-.project-entry:first-child > .assembly-surface { background: color-mix(in srgb, var(--mint) 7%, var(--bg)); }
-.dream-note > .assembly-surface { background: var(--mint-soft); }
-.stack-group > .assembly-surface, .experience-entry > .assembly-surface,
-.log-entry > .assembly-surface, .footer-links > .assembly-surface {
-    background: transparent; border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+/* ---------- Building: blocks wait hidden until a cursor brings them in ---------- */
+/* Only JS sets data-stage, and only while motion is on: everything fails open. */
+[data-motion="on"] [data-stage="pending"] { opacity: 0; }
+body { position: relative; }
+
+/* ---------- The cursor team ---------- */
+/* Layers: content 1, cursors and frames 6, header 10, pointer light 20, skip link 30. */
+.swarm-layer { position: absolute; inset: 0; overflow: clip; pointer-events: none; z-index: 6; }
+.swarm-layer .tone-0 { --tone: var(--accent); --tone-ink: #1c1304; }
+.swarm-layer .tone-1 { --tone: var(--mint); --tone-ink: #06150f; }
+.swarm-layer .tone-2 { --tone: #ff8468; --tone-ink: #200a04; }
+.swarm-layer .tone-3 { --tone: #86c8f7; --tone-ink: #04121d; }
+
+.cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
+.cursor-body { position: absolute; left: 0; top: 0; }
+.cursor-arrow {
+    position: absolute; left: -2.2px; top: -1.6px; width: 19px; height: 24px; overflow: visible;
+    filter: drop-shadow(0 2px 3px rgb(0 0 0 / .35));
 }
-.stack-group:last-child > .assembly-surface, .log-entry:last-child > .assembly-surface { border: 0; }
-.name-frame > .assembly-surface, .hero-subtitle > .assembly-surface, .hero-actions > .assembly-surface { background: transparent; border: 0; }
-[data-motion="off"] .assembly-surface { display: none; }
-@media (prefers-reduced-motion: reduce) {
-    .assembly-surface { display: none; }
+.cursor-arrow path { fill: var(--tone); stroke: var(--bg); stroke-width: 1.5; stroke-linejoin: round; paint-order: stroke; }
+.cursor-label {
+    position: absolute; left: 13px; top: 19px; padding: 2px 7px 3px; border-radius: 3px 9px 9px 9px;
+    background: var(--tone); color: var(--tone-ink); font: 500 .62rem/1.35 var(--font-mono); white-space: nowrap;
+    box-shadow: 0 2px 6px rgb(0 0 0 / .22);
 }
-@media print {
-    .assembly-surface { display: none !important; }
-    [data-motion="on"] .assembly-host { border-color: var(--border); }
+/* Three short strokes off the tip when a cursor clicks. */
+.cursor-ticks { position: absolute; left: -16px; top: -16px; width: 16px; height: 16px; overflow: visible; opacity: 0; }
+.cursor-ticks path { fill: none; stroke: var(--tone); stroke-width: 1.6; stroke-linecap: round; }
+.cursor-trail {
+    position: absolute; left: 0; top: 0; width: 0; height: 2px; margin-top: -1px; opacity: 0;
+    transform-origin: 0 50%; border-radius: 2px;
+    background: linear-gradient(90deg, var(--tone), transparent);
 }
 
-/* A drawn surface has no rotation: its corner and the cursor coincide. */
-.hero-note { transform: none; }
-.name-frame { padding: 10px 16px; margin-left: -16px; }
+/* The frame a cursor drags out or carries: handles, element tag, size readout. */
+.build-frame {
+    position: absolute; left: 0; top: 0; width: 0; height: 0; box-sizing: border-box;
+    border: 1.5px solid var(--tone); background: color-mix(in srgb, var(--tone) 7%, transparent);
+}
+.build-frame i { position: absolute; width: 7px; height: 7px; background: var(--bg); border: 1.5px solid var(--tone); }
+.build-frame i:nth-of-type(1) { left: -4px; top: -4px; }
+.build-frame i:nth-of-type(2) { right: -4px; top: -4px; }
+.build-frame i:nth-of-type(3) { right: -4px; bottom: -4px; }
+.build-frame i:nth-of-type(4) { left: -4px; bottom: -4px; }
+.build-frame b, .build-frame em {
+    position: absolute; padding: 1px 5px; border-radius: 3px; background: var(--tone); color: var(--tone-ink);
+    font: 500 .56rem/1.5 var(--font-mono); font-style: normal; white-space: nowrap;
+}
+.build-frame b { left: -1.5px; bottom: calc(100% + 5px); }
+.build-frame em { left: 50%; top: calc(100% + 7px); translate: -50% 0; }
+.build-frame em:empty { display: none; }
 
-/* ---------- Swarm: many small cursors from one origin ---------- */
-/* Layers inside a scene: content 1, construction frame 2, swarm 5. */
-.swarm-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-.swarm-layer .tone-0 { --tone: var(--accent); --tag-ink: #14100a; }
-.swarm-layer .tone-1 { --tone: var(--mint); --tag-ink: var(--bg); }
-.swarm-layer .tone-2 { --tone: var(--text); --tag-ink: var(--bg); }
-.swarm-layer .tone-3 { --tone: color-mix(in srgb, var(--accent) 55%, var(--text)); --tag-ink: var(--bg); }
-.swarm-cursor, .swarm-ripple, .swarm-caret { color: var(--tone); }
-
-.swarm-cursor { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: translate, transform; }
-.swarm-body { position: absolute; left: 0; top: 0; transform-origin: 0 0; scale: calc(1 - var(--press, 0) * .14); }
-.swarm-arrow {
-    position: absolute; overflow: visible;
-    left: calc(-1.5px * var(--size, 1)); top: calc(-1.5px * var(--size, 1));
-    width: calc(16px * var(--size, 1)); height: calc(21px * var(--size, 1));
-    filter: drop-shadow(0 1.5px 1.5px rgb(0 0 0 / .32));
-}
-.swarm-arrow path { fill: currentColor; stroke: var(--bg); stroke-width: 1.4; stroke-linejoin: round; paint-order: stroke; }
-/* The press ring sits on the hotspot, so a click visibly lands on the tip. */
-.swarm-ring {
-    position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; border-radius: 50%;
-    border: 1.5px solid currentColor; background: color-mix(in srgb, currentColor 16%, transparent);
-    opacity: var(--press, 0); scale: calc(.35 + var(--press, 0) * .65);
-}
-.swarm-trail {
-    position: absolute; left: 0; top: 0; width: 0; height: 2px; margin-top: -1px;
-    transform-origin: 0 50%; border-radius: 2px; opacity: 0;
-    background: linear-gradient(90deg, color-mix(in srgb, currentColor 75%, transparent), transparent);
-}
-.swarm-tag {
-    position: absolute; left: calc(13px * var(--size, 1)); top: calc(17px * var(--size, 1));
-    padding: 1px 6px 2px; border-radius: 2px 7px 7px 7px; background: currentColor;
-    font: 500 .56rem/1.4 var(--font-mono); letter-spacing: .02em; white-space: nowrap; opacity: 0;
-    box-shadow: 0 1px 2px rgb(0 0 0 / .25);
-}
-.swarm-tag::after { content: attr(data-role); color: var(--tag-ink); }
-
-.swarm-caret { position: absolute; left: 0; top: 0; width: 2px; height: 1em; border-radius: 1px; background: currentColor; opacity: 0; }
-.swarm-ripple {
-    position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; border-radius: 50%;
-    border: 1.5px solid currentColor; opacity: 0;
-}
-
-/* The single origin every cursor leaves from and returns to. */
-.swarm-hub { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; }
-.swarm-hub-core {
-    position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-.swarm-hub-halo {
-    position: absolute; left: -18px; top: -18px; width: 36px; height: 36px; border-radius: 50%;
-    border: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
-}
-/* How many cursors are out working right now. */
-.swarm-hub-count {
-    position: absolute; left: 0; bottom: 14px; translate: -50% 0;
-    font: 500 .56rem/1 var(--font-mono); color: var(--accent); letter-spacing: .04em;
-    white-space: nowrap; transition: opacity .2s ease;
-}
-.swarm-hub-count.is-empty { opacity: 0; }
-
-/* Selection marquee dragged out by a cursor, with a live size readout. */
-.swarm-marquee {
-    position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0;
-    border: 1px solid var(--mint); background: color-mix(in srgb, var(--mint) 9%, transparent);
-}
-.swarm-size {
-    position: absolute; left: -1px; top: calc(100% + 5px); padding: 1px 5px; border-radius: 2px;
-    background: var(--mint); color: var(--bg); font: 500 .55rem/1.5 var(--font-mono); white-space: nowrap;
-}
-
-/* Construction guides drawn inside a panel: four handles and four edges. */
-.assembly-frame { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
-.assembly-frame b { position: absolute; background: var(--mint); }
-.assembly-frame b:nth-of-type(1) { left: 0; top: 0; width: 100%; height: 1px; }
-.assembly-frame b:nth-of-type(2) { right: 0; top: 0; width: 1px; height: 100%; }
-.assembly-frame b:nth-of-type(3) { left: 0; bottom: 0; width: 100%; height: 1px; }
-.assembly-frame b:nth-of-type(4) { left: 0; top: 0; width: 1px; height: 100%; }
-.assembly-frame i {
-    position: absolute; width: 7px; height: 7px; margin: -3px 0 0 -3px;
-    background: var(--bg); border: 1.5px solid var(--mint);
-}
-.assembly-frame i:nth-of-type(1) { left: 0; top: 0; }
-.assembly-frame i:nth-of-type(2) { left: 100%; top: 0; }
-.assembly-frame i:nth-of-type(3) { left: 100%; top: 100%; }
-.assembly-frame i:nth-of-type(4) { left: 0; top: 100%; }
-
-[data-motion="off"] .swarm-layer, [data-motion="off"] .assembly-frame { display: none; }
-@media (prefers-reduced-motion: reduce) {
-    .swarm-layer, .assembly-frame { display: none; }
-}
-@media print {
-    .swarm-layer, .assembly-frame { display: none !important; }
-    [style] { clip-path: none !important; }
-}
-
-/* Panels draw their own surface while motion runs: no shadow before it exists. */
-[data-motion="on"] .assembly-host { box-shadow: none; }
-.hero-note > .assembly-surface { box-shadow: 0 20px 60px #00000018; }
-.footer-inner { position: relative; }
+[data-motion="off"] .swarm-layer { display: none; }
+@media (prefers-reduced-motion: reduce) { .swarm-layer { display: none; } }
+@media print { .swarm-layer { display: none !important; } }

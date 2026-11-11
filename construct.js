@@ -1,317 +1,282 @@
-/* Construction jobs performed by the swarm. A panel is never animated as one
-   block: corners are placed one by one, edges are dragged between them, a cursor
-   fills the surface from the point it clicks, badges are dragged out as
-   selections and several cursors type different lines at the same time.
+/* Builders: how a cursor brings one block onto the page.
 
-   Content is never transformed, only revealed, so measurements stay exact. */
+   draw   a panel is dragged out corner to corner, like a frame in a design tool
+   place  a heading or a tile is carried in and dropped where it belongs
+   pop    buttons and chips appear one click at a time
+   row    a list entry: one click on its badge, then the line settles in
+   rise   plain reading text simply fades up, no cursor needed
+
+   Text is never typed. Every block is whole from its first visible frame, and a
+   block that cannot get a cursor in time builds itself, so reading never waits.
+   Stages live in data-stage: pending (hidden by CSS), running, done. */
 window.Construct = (() => {
-    const TEXT = 'h3, p, dt, dd, li, .contact-platform, .contact-handle, .note-tab, .note-code span, .note-code strong, .note-signature, .project-note';
-    const CHIPS = '.project-status, .log-status, .btn, .text-link, .project-monogram, .hardware-mark, .contact-arrow';
-    const CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
-    // Edge drawn from corner a to corner b: [edge index, transform origin, axis].
-    const EDGES = {
-        '01': [0, 'left center', 'scaleX'], '10': [0, 'right center', 'scaleX'],
-        '12': [1, 'center top', 'scaleY'], '21': [1, 'center bottom', 'scaleY'],
-        '23': [2, 'right center', 'scaleX'], '32': [2, 'left center', 'scaleX'],
-        '30': [3, 'center bottom', 'scaleY'], '03': [3, 'center top', 'scaleY'],
-    };
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const CLEAR = 'transform,opacity,clipPath';
 
-    /* One accessible copy for assistive technology and one decorative copy whose
-       characters can be revealed. Inline markup (colours, the name dot, arrows) is
-       kept: only text nodes are split into words and characters. */
-    function split(element) {
-        if (element.querySelector(':scope > .type-visual')) return;
-        const copy = element.cloneNode(true);
-        copy.querySelectorAll('br').forEach(br => br.replaceWith(' '));
-        copy.querySelectorAll('[aria-hidden="true"]').forEach(el => el.remove());
-        const accessible = document.createElement('span');
-        accessible.className = 'sr-only';
-        accessible.textContent = copy.textContent.replace(/\s+/g, ' ').trim();
-        const visual = document.createElement('span');
-        visual.className = 'type-visual';
-        visual.setAttribute('aria-hidden', 'true');
-        visual.append(...element.childNodes);
-        const walker = document.createTreeWalker(visual, NodeFilter.SHOW_TEXT);
-        const nodes = [];
-        while (walker.nextNode()) nodes.push(walker.currentNode);
-        nodes.forEach(node => {
-            const fragment = document.createDocumentFragment();
-            node.textContent.split(/(\s+)/).forEach(word => {
-                if (!word) return;
-                if (/^\s+$/.test(word)) { fragment.append(word); return; }
-                const group = document.createElement('span');
-                group.className = 'type-word';
-                Array.from(word).forEach(char => {
-                    const span = document.createElement('span');
-                    span.className = 'type-char';
-                    span.textContent = char;
-                    group.append(span);
-                });
-                fragment.append(group);
+    // Layout box in page coordinates. Blocks are measured before any transform is applied.
+    function box(el) {
+        const r = el.getBoundingClientRect();
+        return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+    }
+    function point(el, fx = .5, fy = .5, dx = 0, dy = 0) {
+        const r = box(el);
+        return { x: r.x + r.w * fx + dx, y: r.y + r.h * fy + dy };
+    }
+    const tagOf = el => `&lt;${el.tagName.toLowerCase()}&gt;`;
+
+    function create(el, team) {
+        return {
+            el, team, kind: el.dataset.build, from: el.dataset.from || '', items: el.dataset.items || '',
+            stage: '', started: false, cancelled: false, parent: null,
+            cursor: null, preset: null, fan: undefined, frame: null,
+            tweens: new Set(), touched: new Set(), waiters: [],
+        };
+    }
+    function stage(b, value) { b.stage = value; b.el.dataset.stage = value; }
+    function touch(b, ...elements) { elements.flat().forEach(el => el && b.touched.add(el)); }
+
+    // A progress tween whose promise also resolves when the block is finished early.
+    function play(b, duration, ease, update) {
+        return new Promise(resolve => {
+            const state = { p: 0 };
+            const easing = gsap.parseEase(ease);
+            const tween = gsap.to(state, {
+                p: 1, duration, ease: 'none',
+                onUpdate: () => update(easing(state.p), state.p),
+                onComplete: () => { b.tweens.delete(tween); resolve(); },
             });
-            node.replaceWith(fragment);
+            tween.resolve = resolve;
+            b.tweens.add(tween);
         });
-        element.replaceChildren(accessible, visual);
     }
+    function to(b, targets, vars) {
+        const tween = gsap.to(targets, { ...vars, onComplete: () => b.tweens.delete(tween) });
+        b.tweens.add(tween);
+        touch(b, targets);
+        return tween;
+    }
+    const wait = (b, seconds) => play(b, seconds, 'none', () => {});
 
-    function ensure(host, className, fill) {
-        let el = host.querySelector(`:scope > .${className}`);
-        if (!el) {
-            el = document.createElement('span');
-            el.className = className;
-            el.setAttribute('aria-hidden', 'true');
-            fill?.(el);
-            host.append(el);
+    function settle(b) {
+        b.touched.forEach(el => {
+            gsap.set(el, { clearProps: CLEAR });
+            el.style.removeProperty('--rule');
+        });
+        b.touched.clear();
+        stage(b, 'done');
+        b.waiters.splice(0).forEach(resolve => resolve());
+        b.el.dispatchEvent(new CustomEvent('built', { bubbles: true }));
+    }
+    // Jump straight to the finished state: anchors, keyboard focus, pausing motion.
+    function finish(b) {
+        if (b.stage === 'done') return;
+        b.cancelled = true;
+        b.tweens.forEach(tween => { tween.kill(); tween.resolve?.(); });
+        b.tweens.clear();
+        b.frame?.remove(); b.frame = null;
+        // A cursor that was assigned but never got to start goes back to the team as well.
+        [b.cursor, b.preset].forEach(c => { if (c) b.team?.release(c); });
+        b.cursor = b.preset = null;
+        settle(b);
+    }
+    const whenDone = b => b.stage === 'done' ? Promise.resolve() : new Promise(resolve => b.waiters.push(resolve));
+
+    async function hire(b, at, patience = .2) {
+        if (b.preset) { b.cursor = b.preset; b.preset = null; return b.cursor; }
+        if (!b.team || b.unattended) return null;
+        const c = await b.team.acquire(at, b.patience ?? patience);
+        if (b.cancelled) { if (c) b.team.release(c); return null; }
+        b.cursor = c;
+        return c;
+    }
+    function rest(b, anchor, options) {
+        if (!b.cursor) return;
+        const page = b.team.layer.clientWidth;
+        const safe = anchor && (() => { const p = anchor(); return { x: clamp(p.x, 8, page - 26), y: p.y }; });
+        b.team.release(b.cursor, { anchor: safe, ...options, ...b.keep });
+        b.cursor = null;
+    }
+    function takeFan(b) { const fan = b.fan; b.fan = undefined; return fan === undefined ? {} : { fan }; }
+
+    /* Drag a panel out from one corner to the opposite one. The panel is clipped
+       to the growing frame, so its surface and content arrive with the drag. */
+    async function draw(b) {
+        const { el } = b;
+        const r = box(el);
+        const corner = Number(el.dataset.corner ?? 0);
+        const sx = corner === 1 || corner === 2 ? -1 : 1, sy = corner >= 2 ? -1 : 1;
+        const start = { x: sx > 0 ? r.x : r.x + r.w, y: sy > 0 ? r.y : r.y + r.h };
+        const c = await hire(b, start);
+        if (b.cancelled) return;
+        if (c) {
+            await c.fly(start, takeFan(b));
+            if (b.cancelled) return;
+            c.press();
+            b.frame = b.team.frame(c.tone, tagOf(el));
         }
-        return el;
+        const radius = getComputedStyle(el).borderTopLeftRadius;
+        el.style.clipPath = 'inset(50%)';
+        touch(b, el);
+        stage(b, 'running');
+        await play(b, clamp(.34 + Math.hypot(r.w, r.h) / 2600, .42, .66), 'power2.inOut', p => {
+            const w = r.w * p, h = r.h * p;
+            const left = sx > 0 ? 0 : r.w - w, top = sy > 0 ? 0 : r.h - h;
+            el.style.clipPath = `inset(${top.toFixed(1)}px ${(r.w - left - w).toFixed(1)}px ${(r.h - top - h).toFixed(1)}px ${left.toFixed(1)}px round ${radius})`;
+            b.frame?.set(r.x + left, r.y + top, w, h, true);
+            c?.set(start.x + sx * w, start.y + sy * h);
+        });
+        if (b.cancelled) return;
+        c?.release();
+        b.frame?.done(); b.frame = null;
+        rest(b, () => point(el, sx > 0 ? 1 : 0, sy > 0 ? 1 : 0, sx * 12, sy * 10));
     }
 
-    function prepare(host, { mode, texts = TEXT, chips = CHIPS, self = false, shell = false } = {}) {
-        if (self) split(host);
-        host.classList.add('assembly-host');
-        const surface = ensure(host, 'assembly-surface');
-        const frame = ensure(host, 'assembly-frame', el => {
-            el.innerHTML = '<b></b><b></b><b></b><b></b><i></i><i></i><i></i><i></i>';
-        });
-        const chipEls = shell ? [] : [...host.querySelectorAll(chips)];
-        let textEls = [];
-        if (self) textEls = [host];
-        else if (!shell) {
-            const candidates = [...host.querySelectorAll(texts)]
-                .filter(el => !chipEls.some(chip => chip.contains(el)) && !el.closest('.sr-only, .type-visual'));
-            textEls = candidates.filter(el => !candidates.some(other => other !== el && el.contains(other)));
-            textEls.forEach(split);
+    function offset(b, r) {
+        const from = b.from;
+        if (from === 'offscreen') return { x: -(r.x + r.w + 36), y: 0, tilt: 0 };
+        if (from === 'right') return { x: 130, y: 0, tilt: 0 };
+        if (from === 'below') return { x: 0, y: 46, tilt: 0 };
+        if (from === 'above') return { x: 0, y: -46, tilt: 0 };
+        if (from.includes(',')) {
+            const [x, y, tilt = 0] = from.split(',').map(Number);
+            return { x, y, tilt };
         }
-        // Badges that are direct children are revealed by their own drag, not with the content.
-        const content = shell ? [] : [...host.children]
-            .filter(el => el !== surface && el !== frame && !chipEls.includes(el));
-        if (!mode) {
-            const style = getComputedStyle(surface);
-            mode = parseFloat(style.borderTopWidth) > 0 ? 'box'
-                : parseFloat(style.borderBottomWidth) > 0 ? 'rule' : 'bare';
+        return { x: -Math.min(150, r.x * .6 + 50), y: 0, tilt: 0 };
+    }
+
+    /* Carry a whole element in and drop it. Cursor, selection frame and element all
+       read the same progress value, so the grip never slips. */
+    async function place(b) {
+        const { el } = b;
+        const r = box(el);
+        const off = offset(b, r);
+        const grab = { x: r.x + Math.min(30, r.w * .14), y: r.y + r.h * .62 };
+        gsap.set(el, { x: off.x, y: off.y, rotation: off.tilt, opacity: 0 });
+        touch(b, el);
+        stage(b, 'running');
+        const c = await hire(b, { x: grab.x + off.x, y: grab.y + off.y });
+        if (b.cancelled) return;
+        if (c) {
+            await c.fly({ x: grab.x + off.x, y: grab.y + off.y }, takeFan(b));
+            if (b.cancelled) return;
+            c.press();
+            if (el.dataset.frame !== 'off') b.frame = b.team.frame(c.tone, tagOf(el));
         }
-        const edges = [...frame.querySelectorAll('b')];
-        const handles = [...frame.querySelectorAll('i')];
-        const chars = textEls.flatMap(el => [...el.querySelectorAll('.type-char')]);
-        gsap.set(content, { opacity: 0 });
-        gsap.set(chipEls, { opacity: 0 });
-        gsap.set(chars, { opacity: 0 });
-        gsap.set(surface, { opacity: 0 });
-        gsap.set(handles, { scale: 0 });
-        gsap.set([edges[0], edges[2]], { scaleX: 0 });
-        gsap.set([edges[1], edges[3]], { scaleY: 0 });
-        return { host, surface, frame, edges, handles, chips: chipEls, texts: textEls, content, mode };
-    }
-
-    function reveal(stage, part, at) {
-        if (part.content.length) stage.timeline.to(part.content, { opacity: 1, duration: .2 }, at);
-    }
-
-    /* Four cursors claim the four corners, then each drags one edge to the next
-       corner. A fifth action fills the surface outward from where it is clicked. */
-    function frame(stage, part, at, { fill = true, fresh = false } = {}) {
-        const tl = stage.timeline;
-        const clockwise = stage.rand() > .4;
-        const first = Math.floor(stage.rand() * 4);
-        const order = [0, 1, 2, 3].map(k => (first + (clockwise ? k : 4 - k)) % 4);
-        const crew = order.map((corner, k) => {
-            const target = stage.point(part.host, ...CORNERS[corner]);
-            const c = stage.take(at + k * .035, target, { fresh });
-            const arrived = stage.fly(c, target, at + k * .035);
-            const clicked = stage.click(c, arrived);
-            tl.fromTo(part.handles[corner], { scale: 0 }, {
-                scale: 1, duration: .26, ease: 'back.out(3.2)', immediateRender: false,
-            }, arrived + .04);
-            return { c, arrived, clicked };
+        const distance = Math.hypot(off.x, off.y);
+        await play(b, clamp(.4 + distance / 2200, .46, .78), el.dataset.ease || 'power3.out', p => {
+            const k = 1 - p;
+            gsap.set(el, { x: off.x * k, y: off.y * k, rotation: off.tilt * k, opacity: Math.min(1, p * 5) });
+            b.frame?.set(r.x + off.x * k - 6, r.y + off.y * k - 4, r.w + 12, r.h + 8);
+            c?.set(grab.x + off.x * k, grab.y + off.y * k);
         });
-        const sync = Math.max(...crew.map(m => m.clicked)) + .04;
-        const box = stage.rect(part.host);
-        let drawn = sync;
-        crew.forEach(({ c, arrived }, k) => {
-            const a = order[k], b = order[(k + 1) % 4];
-            const [index, origin, axis] = EDGES[`${a}${b}`];
-            const edge = part.edges[index];
-            const duration = clamp(.3 + (axis === 'scaleX' ? box.w : box.h) / 1500, .36, .95);
-            const start = sync + k * .025;
-            gsap.set(edge, { transformOrigin: origin });
-            stage.press(c, start);
-            tl.fromTo(edge, { [axis]: 0 }, {
-                [axis]: 1, duration, ease: 'power2.inOut', immediateRender: false,
-            }, start + .07);
-            const end = stage.move(c, stage.point(part.host, ...CORNERS[b]), start + .07,
-                { straight: true, duration, ease: 'power2.inOut' });
-            stage.release(c, end);
-            stage.role(c, 'frame', arrived, end);
-            drawn = Math.max(drawn, end + .12);
-        });
-        if (!fill) return { crew: crew.map(m => m.c), built: drawn };
-
-        const filler = crew[Math.floor(stage.rand() * crew.length)].c;
-        const fx = stage.between(.3, .7), fy = stage.between(.3, .7);
-        const where = `${(fx * 100).toFixed(1)}% ${(fy * 100).toFixed(1)}%`;
-        const t = stage.fly(filler, stage.point(part.host, fx, fy), drawn - .06);
-        stage.click(filler, t, 1.7);
-        stage.role(filler, 'fill', t - .05, t + .45);
-        tl.set(part.surface, { opacity: 1 }, t + .05)
-            .fromTo(part.surface, { clipPath: `circle(0% at ${where})` }, {
-                clipPath: `circle(150% at ${where})`, duration: .65, ease: 'power2.out', immediateRender: false,
-            }, t + .05)
-            .set(part.surface, { clipPath: 'none' }, t + .72);
-        fold(stage, part, t + .5);
-        return { crew: crew.map(m => m.c), built: t + .3 };
+        if (b.cancelled) return;
+        c?.release();
+        b.frame?.done(); b.frame = null;
+        rest(b, () => point(el, 1, 1, 10, 6));
     }
 
-    // Construction guides disappear once the surface stands on its own.
-    function fold(stage, part, at) {
-        stage.timeline.to(part.handles, { scale: 0, duration: .2, stagger: .03, ease: 'power2.in' }, at)
-            .to(part.edges, { opacity: 0, duration: .3, ease: 'power1.out' }, at + .05);
+    const itemsOf = b => b.items ? [...b.el.querySelectorAll(b.items)] : [...b.el.children];
+
+    // One cursor hops along a row of chips or buttons; each click makes the next one appear.
+    async function pop(b) {
+        const items = itemsOf(b);
+        gsap.set(items, { opacity: 0, scale: .5 });
+        touch(b, items);
+        stage(b, 'running');
+        if (!items.length) return;
+        const c = await hire(b, point(items[0]));
+        if (b.cancelled) return;
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (c) {
+                const r = box(item);
+                const at = { x: r.x + r.w * .5, y: r.y + r.h * .62 };
+                const hop = Math.hypot(at.x - c.x, at.y - c.y);
+                await c.fly(at, i ? { duration: clamp(.1 + hop / 1500, .13, .3), bulge: .12 } : takeFan(b));
+                if (b.cancelled) return;
+                c.click();
+            } else if (i) {
+                await wait(b, .05);
+                if (b.cancelled) return;
+            }
+            to(b, item, { opacity: 1, scale: 1, duration: .38, ease: 'back.out(2.2)' });
+        }
+        await wait(b, .36);
+        if (b.cancelled) return;
+        const last = items[items.length - 1];
+        rest(b, () => point(last, 1, 1, 8, 4));
     }
 
-    // A divider: two cursors meet in its middle and pull it apart.
-    function rule(stage, part, at, { fresh = false } = {}) {
-        const tl = stage.timeline;
-        const pair = [0, 1].map(k => {
-            const target = stage.point(part.host, .5, 1, k ? 3 : -3, 0);
-            const c = stage.take(at + k * .05, target, { fresh });
-            return { c, arrived: stage.fly(c, target, at + k * .05) };
-        });
-        const start = Math.max(...pair.map(p => p.arrived)) + .03;
-        const duration = clamp(.35 + stage.rect(part.host).w / 1600, .4, 1);
-        pair.forEach(({ c, arrived }, k) => {
-            stage.press(c, start);
-            const end = stage.move(c, stage.point(part.host, k, 1), start + .07,
-                { straight: true, duration, ease: 'power2.inOut' });
-            stage.release(c, end);
-            stage.role(c, 'rule', arrived, end);
-        });
-        tl.set(part.surface, { opacity: 1 }, start + .07)
-            .fromTo(part.surface, { clipPath: 'inset(0% 50% 0% 50%)' }, {
-                clipPath: 'inset(0% 0% 0% 0%)', duration, ease: 'power2.inOut', immediateRender: false,
-            }, start + .07)
-            .set(part.surface, { clipPath: 'none' }, start + .07 + duration);
-        return start + .07 + duration * .5;
+    // A list entry: click its badge, the badge pops, the text rises and the rule draws.
+    async function row(b) {
+        const { el } = b;
+        const badge = b.items ? el.querySelector(b.items) : null;
+        const others = [...el.children].filter(child => child !== badge);
+        const target = () => badge ? point(badge, .5, .6) : point(el, 0, .5, 16, 0);
+        gsap.set(others, { opacity: 0, y: 12 });
+        if (badge) gsap.set(badge, { opacity: 0, scale: .5 });
+        el.style.setProperty('--rule', '0');
+        touch(b, others, badge, el);
+        stage(b, 'running');
+        const c = await hire(b, target(), .12);
+        if (b.cancelled) return;
+        if (c) {
+            await c.fly(target(), takeFan(b));
+            if (b.cancelled) return;
+            c.click();
+        }
+        if (badge) to(b, badge, { opacity: 1, scale: 1, duration: .38, ease: 'back.out(2.2)' });
+        to(b, others, { opacity: 1, y: 0, duration: .5, ease: 'power2.out', stagger: .05 });
+        to(b, el, { '--rule': 1, duration: .6, ease: 'power2.inOut' });
+        await wait(b, .6);
+        if (b.cancelled) return;
+        rest(b, badge ? () => point(badge, 1, 1, 6, 4) : null, { linger: .5 });
     }
 
-    /* A badge or button: grab its top-left corner, drag a selection to the opposite
-       corner while the size readout updates, release, and the element appears. */
-    function stamp(stage, el, at, { fresh = false } = {}) {
-        const tl = stage.timeline;
-        const corner = stage.point(el, 0, 0, -1, -1);
-        const c = stage.take(at, corner, { fresh });
-        const arrived = stage.fly(c, corner, at);
-        const marquee = document.createElement('span');
-        marquee.className = 'swarm-marquee';
-        marquee.innerHTML = '<span class="swarm-size"></span>';
-        stage.layer.append(marquee);
-        const readout = marquee.firstChild;
-        const size = stage.rect(el);
-        const duration = clamp(.22 + Math.hypot(size.w, size.h) / 900, .26, .6);
-        stage.press(c, arrived);
-        tl.set(marquee, { opacity: 1 }, arrived + .07);
-        const end = stage.move(c, stage.point(el, 1, 1, 1, 1), arrived + .07, {
-            straight: true, duration, ease: 'power2.out',
-            onPlace(p) {
-                const o = corner();
-                const w = Math.max(0, p.x - o.x), h = Math.max(0, p.y - o.y);
-                marquee.style.translate = `${o.x.toFixed(1)}px ${o.y.toFixed(1)}px`;
-                marquee.style.width = `${w.toFixed(1)}px`;
-                marquee.style.height = `${h.toFixed(1)}px`;
-                readout.textContent = `${Math.round(w)} × ${Math.round(h)}`;
-            },
-        });
-        stage.release(c, end);
-        stage.role(c, 'drag', arrived, end + .1);
-        tl.fromTo(el, { opacity: 0, clipPath: 'circle(0% at 100% 100%)' }, {
-            opacity: 1, clipPath: 'circle(150% at 100% 100%)', duration: .4, ease: 'power2.out', immediateRender: false,
-        }, end)
-            .set(el, { clipPath: 'none' }, end + .4)
-            .to(marquee, { opacity: 0, duration: .22 }, end + .12);
-        return end + .4;
+    async function rise(b) {
+        const items = b.items ? itemsOf(b) : [b.el];
+        gsap.set(items, { opacity: 0, y: 14 });
+        touch(b, items);
+        stage(b, 'running');
+        to(b, items, { opacity: 1, y: 0, duration: .55, ease: 'power2.out', stagger: .07 });
+        await wait(b, .55 + (items.length - 1) * .07);
     }
 
-    function linesOf(stage, el) {
-        const lines = [];
-        el.querySelectorAll('.type-char').forEach(char => {
-            const r = stage.rect(char);
-            const line = lines[lines.length - 1];
-            if (line && Math.abs(r.y - line.y) < r.h * .5) line.chars.push(char);
-            else lines.push({ y: r.y, chars: [char] });
-        });
-        return lines;
+    const BUILDERS = { draw, place, pop, row, rise };
+
+    /* Build one block. Options: cursor (a specific team member), fan (leave the
+       origin in this direction), unattended (no cursor at all), keep (how the
+       cursor rests afterwards), patience (seconds to wait for a free cursor).
+       A nested block waits for the block around it. */
+    async function run(b, options = {}) {
+        if (b.started || b.stage === 'done') return whenDone(b);
+        b.started = true;
+        b.preset = options.cursor || null;
+        b.fan = options.fan;
+        b.unattended = Boolean(options.unattended);
+        b.keep = options.keep;
+        b.patience = options.patience;
+        if (b.parent && b.parent.stage !== 'done') {
+            run(b.parent, { unattended: b.unattended });
+            await whenDone(b.parent);
+        }
+        if (b.cancelled) return;
+        try {
+            await (BUILDERS[b.kind] || rise)(b);
+        } catch (error) {
+            console.error('Build step failed:', error);
+            finish(b);
+        }
+        if (!b.cancelled && b.stage !== 'done') settle(b);
     }
 
-    // One cursor types one line: the arrow glides under the glyphs, the caret follows.
-    function type(stage, c, chars, at, perChar) {
-        const tl = stage.timeline;
-        const glyph = char => stage.rect(char);
-        const below = (g, f) => ({ x: g.x + g.w * f + 3, y: g.y + g.h + 4 });
-        const arrived = stage.fly(c, () => below(glyph(chars[0]), 0), at);
-        const caret = stage.caretOf(c);
-        const count = chars.length;
-        const duration = clamp(count * perChar, .16, 2.4);
-        const state = { n: 0 };
-        let shown = 0;
-        tl.set(caret, { opacity: 1 }, arrived)
-            .to(state, {
-                n: count, duration, ease: 'none',
-                onUpdate() {
-                    const n = state.n;
-                    const visible = Math.min(count, n > 0 ? Math.floor(n) + 1 : 0);
-                    // Only the characters crossed since the previous frame are touched.
-                    for (let i = Math.min(shown, visible); i < Math.max(shown, visible); i++) {
-                        chars[i].style.opacity = i < visible ? '1' : '0';
-                    }
-                    shown = visible;
-                    const i = Math.min(count - 1, Math.floor(n));
-                    const g = glyph(chars[i]);
-                    stage.place(c, below(g, n >= count ? 1 : n - Math.floor(n)));
-                    const last = glyph(chars[Math.max(0, visible - 1)]);
-                    caret.style.translate = `${(visible ? last.x + last.w + 1 : g.x).toFixed(1)}px ${(last.y + last.h * .12).toFixed(1)}px`;
-                    caret.style.height = `${(last.h * .78).toFixed(1)}px`;
-                },
-            }, arrived)
-            .set(caret, { opacity: 0 }, arrived + duration);
-        const rest = () => below(glyph(chars[count - 1]), 1);
-        stage.occupy(c, arrived, arrived + duration, rest, 'type');
-        c.pos = rest;
-        stage.role(c, 'type', arrived, arrived + duration);
-        return arrived + duration;
+    // Every [data-build] element under `root`, in document order, linked to its enclosing block.
+    function collect(root, team) {
+        const blocks = [...root.querySelectorAll('[data-build]')].map(el => create(el, team));
+        const byElement = new Map(blocks.map(b => [b.el, b]));
+        blocks.forEach(b => { b.parent = byElement.get(b.el.parentElement?.closest('[data-build]')) || null; });
+        return blocks;
     }
 
-    /* Several cursors share the text: each one takes a contiguous run of lines with
-       roughly the same number of characters, so they finish together. */
-    function write(stage, elements, at, { perChar = .022, typists, fresh = false, gap = .06 } = {}) {
-        const lines = elements.flatMap(el => linesOf(stage, el));
-        if (!lines.length) return at;
-        const total = lines.reduce((sum, line) => sum + line.chars.length, 0);
-        const count = clamp(typists ?? Math.ceil(total / 42), 1, Math.min(4, lines.length));
-        const groups = Array.from({ length: count }, () => []);
-        let done = 0;
-        lines.forEach(line => {
-            groups[Math.min(count - 1, Math.floor(done / total * count))].push(line);
-            done += line.chars.length;
-        });
-        let end = at;
-        groups.filter(group => group.length).forEach((group, k) => {
-            const start = at + k * .06;
-            const c = stage.take(start, stage.point(group[0].chars[0], 0, 1), { fresh });
-            let t = start;
-            group.forEach(line => { t = type(stage, c, line.chars, t, perChar) + gap; });
-            end = Math.max(end, t);
-        });
-        return end;
-    }
-
-    function panel(stage, part, at, { fresh = false, perChar, typists } = {}) {
-        let ready = at;
-        if (part.mode === 'box') ready = frame(stage, part, at, { fresh }).built;
-        else if (part.mode === 'rule') ready = rule(stage, part, at, { fresh });
-        reveal(stage, part, ready);
-        let end = ready;
-        part.chips.forEach((chip, i) => { end = Math.max(end, stamp(stage, chip, ready + .05 + i * .14)); });
-        return Math.max(end, write(stage, part.texts, ready + .02, { perChar, typists }));
-    }
-
-    return { split, prepare, reveal, frame, fold, rule, stamp, write, type, panel };
+    return { collect, run, finish, stage, whenDone, box, point };
 })();

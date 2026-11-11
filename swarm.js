@@ -1,21 +1,21 @@
-/* A swarm of small cursors that leave one origin point, take curved and slightly
-   erratic routes, work on the page and fly home again.
+/* The cursor team: a few named cursors that live on the page in real time.
 
-   Every movement is a tween inside one GSAP timeline, so a scene can play in real
-   time (the introduction) or be scrubbed and reversed by scrolling (sections).
-   Element geometry is read from a cache that is cleared on refresh: cursors stay
-   attached to real elements after resizes and font loading. Detours are stored as
-   ratios of the flight distance, never as absolute coordinates. */
+   Nothing here is tied to scrolling. A cursor is either working (a builder moves
+   it), resting beside what it just made, or away. Flights are single smooth arcs
+   with minimum-jerk easing, the way a hand moves a mouse: no wobble, no lean.
+   Resting cursors breathe a little and step aside when the real pointer comes
+   close. All positions are page coordinates, so cursors scroll with the content. */
 window.Swarm = (() => {
-    const ARROW = 'M1.5 1.5 L1.5 16.7 L5.4 13 L8 19.1 L10.9 17.9 L8.3 11.9 L13.7 11.9 Z';
-    const FLIGHT_EASES = ['power2.inOut', 'power3.inOut', 'sine.inOut', 'power3.out', 'expo.inOut'];
+    const ARROW = 'M2.2 1.6V19.4L6.9 15L10 22.2L13.3 20.8L10.3 13.9H16.9Z';
+    const TICKS = 'M-4.5 -9.5L-6.2 -13.6M-9.5 -4.5L-13.6 -6.2M-8.4 -8.4L-11.6 -11.6';
+    // The tools from stack.json are the ones building the page.
+    const NAMES = ['C++', 'TS', 'CSS', 'Git', 'Python', 'React', 'GSAP', 'HTML'];
     const TONES = 4;
-    // A cursor that has waited this long goes home; later work starts from the origin again.
-    const IDLE_LIMIT = 2.2;
+    const SHY = 120;
     const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    // Minimum-jerk profile: zero velocity and acceleration at both ends.
+    const minJerk = p => p * p * p * (10 + p * (6 * p - 15));
 
-    // Small deterministic generator: the same scene always flies the same routes,
-    // which keeps scrubbing backwards and forwards consistent.
     function generator(seed) {
         let state = seed >>> 0;
         return () => {
@@ -26,339 +26,273 @@ window.Swarm = (() => {
         };
     }
 
-    // Uniform Catmull-Rom spline through every point, u in [0, 1].
-    function spline(points, u) {
-        const segments = points.length - 1;
-        const f = clamp(u, 0, 1) * segments;
-        const i = Math.min(segments - 1, Math.floor(f));
-        const t = f - i, t2 = t * t, t3 = t2 * t;
-        const p0 = points[Math.max(0, i - 1)], p1 = points[i];
-        const p2 = points[i + 1], p3 = points[Math.min(segments, i + 2)];
-        const c = (a, b, c2, d) => .5 * (2 * b + (c2 - a) * t
-            + (2 * a - 5 * b + 4 * c2 - d) * t2 + (3 * b - a - 3 * c2 + d) * t3);
-        return { x: c(p0.x, p1.x, p2.x, p3.x), y: c(p0.y, p1.y, p2.y, p3.y) };
-    }
-
-    function createCursor(layer, tone, size) {
-        const el = document.createElement('span');
-        el.className = `swarm-cursor tone-${tone}`;
-        el.style.setProperty('--size', size.toFixed(2));
-        el.innerHTML = '<span class="swarm-trail"></span>'
-            + '<span class="swarm-body"><span class="swarm-ring"></span>'
-            + `<svg class="swarm-arrow" viewBox="0 0 16 21" focusable="false"><path d="${ARROW}"/></svg></span>`
-            + '<span class="swarm-tag"></span>';
-        layer.append(el);
-        const [trail, body, tag] = el.children;
-        return { el, trail, body, tag, tone };
-    }
-
-    function stage(container, { seed = 1 } = {}) {
+    function create({ size = 8, seed = 11, labels = true } = {}) {
         const rand = generator(seed);
         const between = (min, max) => min + rand() * (max - min);
-        const pick = list => list[Math.floor(rand() * list.length)];
-
         const layer = document.createElement('div');
         layer.className = 'swarm-layer';
         layer.setAttribute('aria-hidden', 'true');
-        container.append(layer);
-        const hub = document.createElement('span');
-        hub.className = 'swarm-hub';
-        hub.innerHTML = '<span class="swarm-hub-halo"></span><span class="swarm-hub-core"></span>'
-            + '<span class="swarm-hub-count"></span>';
-        layer.append(hub);
+        document.body.append(layer);
 
-        const timeline = gsap.timeline({ paused: true });
-        const cursors = [];
-        // Every working life of a cursor, for the live counter beside the origin.
-        const lives = [];
-        const cache = new Map();
-        let base = null;
-        let originAt = () => ({ x: 0, y: 0 });
-        let lastPulse = -Infinity;
-        let firstSpawn = Infinity;
-
-        function rect(el) {
-            let box = cache.get(el);
-            if (!box) {
-                base ||= layer.getBoundingClientRect();
-                const r = el.getBoundingClientRect();
-                box = { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
-                cache.set(el, box);
-            }
-            return box;
-        }
-        const point = (el, fx = 0, fy = 0, dx = 0, dy = 0) => () => {
-            const r = rect(el);
-            return { x: r.x + r.w * fx + dx, y: r.y + r.h * fy + dy };
+        const pointer = { x: 0, y: 0, active: false };
+        const waiting = [];
+        const calls = new Set();
+        const later = (seconds, fn) => {
+            const call = gsap.delayedCall(seconds, () => { calls.delete(call); fn(); });
+            calls.add(call);
+            return call;
         };
-        function measure() { cache.clear(); base = null; }
 
-        function place(c, p, vx = 0, vy = 0) {
-            c.el.style.translate = `${p.x.toFixed(1)}px ${p.y.toFixed(1)}px`;
-            const speed = Math.hypot(vx, vy);
-            // Cursors lean into horizontal motion and leave a streak proportional to speed.
-            c.body.style.rotate = `${clamp(vx * .014, -22, 22).toFixed(1)}deg`;
-            const length = clamp(speed * .05, 0, 72);
-            c.trail.style.width = `${length.toFixed(1)}px`;
-            c.trail.style.opacity = clamp(speed / 1100, 0, .85).toFixed(2);
-            if (length > .5) c.trail.style.rotate = `${Math.atan2(-vy, -vx).toFixed(3)}rad`;
-        }
-
-        function occupy(c, start, end, pos, kind = 'work') {
-            c.busy.push({ start, end, pos, kind });
-            c.free = Math.max(c.free, end);
-        }
-
-        // A route: endpoints are read live, detours are fixed fractions of the chord.
-        function route(from, to, launch) {
-            const detours = rand() < .55 ? 2 : 1;
-            const knots = Array.from({ length: detours }, (_, k) => ({
-                at: (k + 1) / (detours + 1) + between(-.08, .08),
-                side: between(-.42, .42),
-                lift: between(16, 46) * (rand() < .5 ? -1 : 1),
-            }));
-            const wobble = { amp: between(2.5, 8), freq: between(2.5, 6.5), phase: between(0, Math.PI * 2) };
-            const leap = { radius: between(46, 150), turn: between(-1.5, 1.5) };
-            return () => {
-                const a = from(), b = to();
-                const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
-                const nx = -dy / d, ny = dx / d;
-                const points = [a];
-                if (launch) {
-                    // Leaving the origin: first burst outwards, then turn toward the job.
-                    const angle = Math.atan2(dy, dx) + leap.turn;
-                    points.push({ x: a.x + Math.cos(angle) * leap.radius, y: a.y + Math.sin(angle) * leap.radius });
-                }
-                knots.forEach(k => {
-                    const off = k.side * Math.min(d, 520) + k.lift;
-                    points.push({ x: a.x + dx * k.at + nx * off, y: a.y + dy * k.at + ny * off });
-                });
-                points.push(b);
-                return { points, nx, ny, wobble };
-            };
-        }
-
-        function move(c, to, at, { duration, ease, straight = false, launch = false, onPlace } = {}) {
-            const from = c.pos;
-            const shape = straight ? null : route(from, to, launch);
-            if (!duration) {
-                const a = from(), b = to();
-                duration = clamp(.24 + Math.hypot(b.x - a.x, b.y - a.y) / 1400, .3, 1.05) * between(.85, 1.18);
-                if (launch) duration += .1;
-            }
-            const easing = gsap.parseEase(ease || (straight ? 'power2.inOut' : pick(FLIGHT_EASES)));
-            function position(u, path) {
-                if (!path) {
-                    const a = from(), b = to();
-                    return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
-                }
-                const p = spline(path.points, u);
-                const w = path.wobble;
-                const offset = Math.sin(u * w.freq * Math.PI * 2 + w.phase) * w.amp * Math.sin(Math.PI * u);
-                return { x: p.x + path.nx * offset, y: p.y + path.ny * offset };
-            }
-            const state = { p: 0 };
-            timeline.to(state, {
-                p: 1, duration, ease: 'none',
-                onUpdate() {
-                    const p = state.p, path = shape && shape();
-                    const lo = Math.max(0, p - .012), hi = Math.min(1, p + .012);
-                    const here = position(easing(p), path);
-                    const a = position(easing(lo), path), b = position(easing(hi), path);
-                    const dt = Math.max(1e-4, (hi - lo) * duration);
-                    place(c, here, (b.x - a.x) / dt, (b.y - a.y) / dt);
-                    onPlace?.(here, p);
-                },
-            }, at);
-            occupy(c, at, at + duration, to, launch ? 'launch' : 'move');
-            c.pos = to;
-            return at + duration;
-        }
-
-        // Breathing while waiting: a small Lissajous loop that ends where it began.
-        function drift(c, start, end, anchor) {
-            const span = end - start;
-            if (span < .3) return;
-            const ax = between(3, 10), ay = between(2.5, 7);
-            const turns = Math.max(1, Math.round(span / 1.5)), phase = rand() < .5 ? 1 : -1;
-            const state = { p: 0 };
-            const at = p => {
-                const envelope = Math.sin(Math.PI * p);
-                const o = anchor();
-                return {
-                    x: o.x + Math.sin(p * turns * Math.PI * 2) * ax * envelope * phase,
-                    y: o.y + Math.sin(p * turns * Math.PI * 4) * ay * envelope,
-                };
-            };
-            timeline.to(state, {
-                p: 1, duration: span, ease: 'none',
-                onUpdate() {
-                    const p = state.p, a = at(Math.max(0, p - .01)), b = at(Math.min(1, p + .01));
-                    const dt = .02 * span;
-                    place(c, at(p), (b.x - a.x) / dt, (b.y - a.y) / dt);
-                },
-            }, start);
-        }
-
-        function ripple(where, at, tone, size = 1) {
+        const cursors = Array.from({ length: size }, (_, index) => {
             const el = document.createElement('span');
-            el.className = `swarm-ripple tone-${tone}`;
+            const name = NAMES[index % NAMES.length];
+            el.className = `cursor tone-${index % TONES}`;
+            el.innerHTML = '<span class="cursor-trail"></span><span class="cursor-body">'
+                + `<svg class="cursor-ticks" viewBox="-16 -16 16 16" focusable="false"><path d="${TICKS}"/></svg>`
+                + `<svg class="cursor-arrow" viewBox="0 0 19 24" focusable="false"><path d="${ARROW}"/></svg>`
+                + (labels ? `<span class="cursor-label">${name}</span>` : '') + '</span>';
             layer.append(el);
-            timeline.fromTo(el, {
-                x: () => where().x, y: () => where().y, scale: .15 * size, opacity: .9,
-            }, {
-                scale: size, opacity: 0, duration: .5, ease: 'power2.out', immediateRender: false,
-            }, at);
-        }
+            const [trail, body] = el.children;
+            const c = {
+                el, trail, body, ticks: body.children[0], arrow: body.children[1], index, name, tone: index % TONES,
+                x: 0, y: 0, lx: 0, ly: 0, vx: 0, vy: 0, streak: false,
+                shown: false, busy: false, idle: false, anchor: null, tween: null, settle: null, leave: null,
+                // Each cursor breathes at its own pace while resting.
+                w1: between(.55, .95), w2: between(.4, .8), phase: between(0, 6.28), ax: between(2, 4.5), ay: between(1.5, 3.5),
+            };
+            gsap.set(body, { opacity: 0, scale: .4, transformOrigin: '0 0' });
+            c.fly = (to, options) => fly(c, to, options);
+            c.set = (x, y) => { c.x = x; c.y = y; };
+            c.press = () => press(c);
+            c.release = () => lift(c);
+            c.click = () => click(c);
+            return c;
+        });
 
-        function press(c, at) {
-            timeline.to(c.el, { '--press': 1, duration: .07, ease: 'power2.out' }, at);
-            occupy(c, at, at + .07, c.pos, 'press');
-            return at + .07;
-        }
-        function release(c, at) {
-            timeline.to(c.el, { '--press': 0, duration: .12, ease: 'power2.out' }, at);
-            occupy(c, at, at + .12, c.pos, 'press');
-            return at + .12;
-        }
-        function click(c, at, size = 1) {
-            const where = c.pos;
-            press(c, at);
-            ripple(where, at + .04, c.tone, size);
-            return release(c, at + .1) + .04;
-        }
+        const inView = c => c.y > scrollY - 40 && c.y < scrollY + innerHeight + 40
+            && c.x > -40 && c.x < layer.clientWidth + 40;
 
-        // A role label beside the arrow, shown only while the cursor is working.
-        function role(c, name, start, end) {
-            timeline.set(c.tag, { attr: { 'data-role': name } }, start)
-                .to(c.tag, { opacity: 1, x: 0, duration: .14, ease: 'power2.out' }, start)
-                .to(c.tag, { opacity: 0, x: -4, duration: .18, ease: 'power2.in' }, Math.max(start + .14, end));
-        }
-
-        function caretOf(c) {
-            if (!c.caret) {
-                c.caret = document.createElement('span');
-                c.caret.className = `swarm-caret tone-${c.tone}`;
-                layer.append(c.caret);
+        function paint(c, dt) {
+            c.el.style.transform = `translate3d(${c.x.toFixed(2)}px,${c.y.toFixed(2)}px,0)`;
+            if (dt > 0) {
+                const k = 1 - Math.exp(-dt * 16);
+                c.vx += ((c.x - c.lx) / dt - c.vx) * k;
+                c.vy += ((c.y - c.ly) / dt - c.vy) * k;
             }
-            return c.caret;
+            c.lx = c.x; c.ly = c.y;
+            // A faint streak, only at real speed, never longer than the arrow itself.
+            const length = clamp((Math.hypot(c.vx, c.vy) - 320) * .014, 0, 18);
+            if (length > .5) {
+                c.trail.style.width = `${length.toFixed(1)}px`;
+                c.trail.style.opacity = (length / 18 * .2).toFixed(3);
+                c.trail.style.transform = `rotate(${Math.atan2(-c.vy, -c.vx).toFixed(3)}rad)`;
+                c.streak = true;
+            } else if (c.streak) {
+                c.trail.style.opacity = '0';
+                c.streak = false;
+            }
         }
 
-        function spawn(at) {
-            let c = cursors.find(item => item.retired && item.away <= at);
-            if (!c) {
-                c = createCursor(layer, cursors.length % TONES, between(.88, 1.12));
-                Object.assign(c, { busy: [], free: 0 });
-                gsap.set(c.el, { opacity: 0, scale: 0, transformOrigin: '0 0', '--press': 0 });
-                gsap.set(c.tag, { opacity: 0, x: -4 });
-                cursors.push(c);
+        function tick(time, delta) {
+            const dt = Math.min(.05, delta / 1000);
+            const px = pointer.x + scrollX, py = pointer.y + scrollY;
+            for (const c of cursors) {
+                if (!c.shown) continue;
+                if (c.idle && inView(c)) {
+                    const home = c.anchor();
+                    let tx = home.x + Math.sin(time * c.w1 + c.phase) * c.ax;
+                    let ty = home.y + Math.cos(time * c.w2 + c.phase * 1.7) * c.ay;
+                    if (pointer.active) {
+                        const dx = tx - px, dy = ty - py, d = Math.hypot(dx, dy) || 1;
+                        if (d < SHY) {
+                            const push = (1 - d / SHY) * 70;
+                            tx += dx / d * push; ty += dy / d * push;
+                        }
+                    }
+                    const k = 1 - Math.exp(-dt * 5.5);
+                    c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
+                }
+                paint(c, dt);
             }
-            const origin = () => originAt(at);
-            c.retired = false;
-            c.life = { from: at, to: Infinity };
-            lives.push(c.life);
-            c.pos = origin;
-            c.free = at;
-            timeline.call(() => place(c, origin()), null, at)
-                .fromTo(c.el, { opacity: 0, scale: 0 },
-                    { opacity: 1, scale: 1, duration: .2, ease: 'back.out(2.6)', immediateRender: false }, at);
-            occupy(c, at, at + .06, origin, 'spawn');
-            c.fresh = true;
-            if (at - lastPulse > .07) { ripple(origin, at, c.tone, .8); lastPulse = at; }
-            firstSpawn = Math.min(firstSpawn, at);
+        }
+        gsap.ticker.add(tick);
+
+        const onMove = event => {
+            if (event.pointerType === 'touch') return;
+            pointer.x = event.clientX; pointer.y = event.clientY; pointer.active = true;
+        };
+        const onLeave = () => { pointer.active = false; };
+        window.addEventListener('pointermove', onMove, { passive: true });
+        document.documentElement.addEventListener('pointerleave', onLeave);
+
+        function show(c) {
+            c.shown = true;
+            gsap.killTweensOf(c.body);
+            gsap.to(c.body, { opacity: 1, scale: 1, duration: .26, ease: 'back.out(2.2)' });
+        }
+        function hide(c) {
+            c.shown = false; c.idle = false;
+            gsap.killTweensOf(c.body);
+            gsap.set(c.body, { opacity: 0, scale: .4 });
+        }
+        function jump(c, x, y) { c.x = c.lx = x; c.y = c.ly = y; c.vx = c.vy = 0; }
+        function spawn(c, at) { stop(c); jump(c, at.x, at.y); paint(c, 0); show(c); }
+
+        // A cursor that is away comes in over the nearest edge of the screen, not across the page.
+        function enter(c, to) {
+            const top = scrollY, height = innerHeight, width = layer.clientWidth;
+            const near = to.x < width / 2 ? -30 : width + 30;
+            const roll = rand();
+            const sideY = clamp(to.y + between(-170, 170), top + 90, top + height - 50);
+            if (roll < .55) jump(c, near, sideY);
+            else if (roll < .85) jump(c, clamp(to.x + between(-280, 280), 40, width - 40), top + height + 30);
+            else jump(c, near < 0 ? width + 30 : -30, sideY);
+            paint(c, 0);
+            show(c);
+        }
+
+        function stop(c) {
+            c.leave?.kill(); c.leave = null;
+            c.tween?.kill(); c.tween = null;
+            const settle = c.settle; c.settle = null;
+            settle?.(false);
+        }
+
+        function fly(c, target, { duration, bulge, fan, radius } = {}) {
+            stop(c);
+            c.idle = false;
+            const to = typeof target === 'function' ? target() : target;
+            if (!c.shown || !inView(c)) enter(c, to);
+            else show(c);
+            const from = { x: c.x, y: c.y };
+            const dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy);
+            if (d < 1.5) return Promise.resolve(true);
+            const nx = -dy / d, ny = dx / d;
+            const side = (bulge ?? between(.07, .19) * (rand() < .5 ? -1 : 1)) * Math.min(d, 640);
+            // One arc: both handles sit on the same side of the straight line.
+            let c1 = { x: from.x + dx * .3 + nx * side, y: from.y + dy * .3 + ny * side };
+            const c2 = { x: from.x + dx * .74 + nx * side * .5, y: from.y + dy * .74 + ny * side * .5 };
+            if (fan !== undefined) {
+                // Leaving the origin: head out along the fan direction first, then curve to the job.
+                const reach = radius ?? between(90, 170);
+                c1 = { x: from.x + Math.cos(fan) * reach, y: from.y + Math.sin(fan) * reach };
+            }
+            duration ??= clamp(.34 + d / 1750, .44, .98) * between(.94, 1.1) + (fan !== undefined ? .1 : 0);
+            return new Promise(resolve => {
+                const state = { p: 0 };
+                c.settle = resolve;
+                c.tween = gsap.to(state, {
+                    p: 1, duration, ease: 'none',
+                    onUpdate() {
+                        const t = minJerk(state.p), u = 1 - t;
+                        c.x = u * u * u * from.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * to.x;
+                        c.y = u * u * u * from.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * to.y;
+                    },
+                    onComplete() { c.tween = null; c.settle = null; resolve(true); },
+                });
+            });
+        }
+
+        function press(c) { gsap.to(c.arrow, { scale: .86, duration: .08, ease: 'power2.out', transformOrigin: '2px 2px' }); }
+        function lift(c) { gsap.to(c.arrow, { scale: 1, duration: .22, ease: 'back.out(3)', transformOrigin: '2px 2px' }); }
+        function click(c) {
+            press(c);
+            gsap.fromTo(c.ticks, { opacity: .95, scale: .35 },
+                { opacity: 0, scale: 1.1, duration: .4, ease: 'power2.out', transformOrigin: '100% 100%' });
+            later(.09, () => lift(c));
+        }
+
+        function pick(at) {
+            let best = null, cost = Infinity;
+            for (const c of cursors) {
+                if (c.busy) continue;
+                // An away cursor costs about one flight from the edge of the screen.
+                const d = c.shown && inView(c) ? Math.hypot(c.x - at.x, c.y - at.y) : 560 + rand() * 120;
+                if (d < cost) { cost = d; best = c; }
+            }
+            return best;
+        }
+        function take(c) {
+            c.busy = true; c.idle = false;
+            c.leave?.kill(); c.leave = null;
             return c;
         }
-
-        function retire(c, at) {
-            const start = Math.max(at, c.free);
-            let arrival = start + 1;
-            const home = () => originAt(arrival);
-            arrival = move(c, home, start, { ease: pick(['power2.inOut', 'power3.in', 'sine.inOut']) });
-            timeline.to(c.el, { opacity: 0, scale: 0, duration: .16, ease: 'power2.in' }, arrival - .06);
-            // The origin answers each returning cursor with a small inward ring.
-            ripple(home, arrival - .04, c.tone, .55);
-            c.busy[c.busy.length - 1].kind = 'home';
-            c.life.to = arrival;
-            c.retired = true;
-            c.away = arrival + .12;
-            return c.away;
-        }
-
-        // Pick the nearest cursor that is free; otherwise send a new one from the origin.
-        function take(at, near, { fresh = false } = {}) {
-            cursors.forEach(c => {
-                if (!c.retired && at - c.free > IDLE_LIMIT) retire(c, c.free + between(.15, .45));
-            });
-            if (!fresh) {
-                const target = near?.();
-                let best = null, score = Infinity;
-                cursors.forEach(c => {
-                    if (c.retired || c.free > at + .04) return;
-                    const p = c.pos();
-                    const s = target ? Math.hypot(p.x - target.x, p.y - target.y) : c.free;
-                    if (s < score) { score = s; best = c; }
+        /* The nearest free cursor, or null when everyone stays busy for `wait` seconds.
+           Builders carry on without a cursor then: content never waits for the team. */
+        function acquire(at, wait = .2) {
+            const free = pick(at);
+            if (free) return Promise.resolve(take(free));
+            if (!wait) return Promise.resolve(null);
+            return new Promise(resolve => {
+                const request = c => { timeout.kill(); calls.delete(timeout); resolve(c); };
+                const timeout = later(wait, () => {
+                    const i = waiting.indexOf(request);
+                    if (i >= 0) waiting.splice(i, 1);
+                    resolve(null);
                 });
-                if (best) return best;
-            }
-            return spawn(at);
-        }
-
-        // Fly somewhere, leaving the origin with a burst if the cursor was just born.
-        function fly(c, to, at, options = {}) {
-            const launch = c.fresh;
-            c.fresh = false;
-            return move(c, to, Math.max(at, c.free), { launch, ...options });
-        }
-
-        function finish() {
-            cursors.forEach(c => { if (!c.retired) retire(c, c.free + between(.1, .5)); });
-            // Fill every pause inside a working life with idle drift.
-            cursors.forEach(c => {
-                const spans = c.busy.slice().sort((a, b) => a.start - b.start);
-                for (let i = 0; i < spans.length - 1; i++) {
-                    if (spans[i].kind === 'home') continue;
-                    drift(c, spans[i].end, spans[i + 1].start, spans[i].pos);
-                }
+                waiting.push(request);
             });
-            const end = Math.max(0, ...cursors.map(c => c.away || 0));
-            const start = Number.isFinite(firstSpawn) ? Math.max(0, firstSpawn - .2) : 0;
-            const [halo, , counter] = hub.children;
-            const where = { t: 0 };
-            let shown = -1;
-            const placeHub = () => {
-                const p = originAt(where.t);
-                hub.style.translate = `${p.x.toFixed(1)}px ${p.y.toFixed(1)}px`;
-                const out = lives.reduce((n, life) => n + (life.from <= where.t && where.t < life.to), 0);
-                if (out !== shown) {
-                    counter.textContent = `×${out}`;
-                    counter.classList.toggle('is-empty', out === 0);
-                    shown = out;
-                }
-            };
-            gsap.set(hub, { opacity: 0, scale: 0 });
-            timeline.to(where, { t: end, duration: end, ease: 'none', onUpdate: placeHub }, 0)
-                .to(hub, { opacity: 1, scale: 1, duration: .25, ease: 'back.out(2.2)' }, start)
-                // The halo turns with scene time, so it also turns back when scrubbed.
-                .fromTo(halo, { scale: .6, rotate: 0 }, {
-                    scale: 1.25, rotate: 50 * (end - start), duration: Math.max(.3, end - start - .3),
-                    ease: 'sine.inOut', immediateRender: false,
-                }, start)
-                .to(hub, { opacity: 0, scale: 0, duration: .22, ease: 'power2.in' }, Math.max(start + .3, end - .1));
-            placeHub();
-            return Math.max(end + .15, timeline.duration());
         }
 
-        function destroy() { layer.remove(); }
+        function release(c, { anchor, linger, stay = false } = {}) {
+            if (!c || !c.busy) return;
+            stop(c);
+            const next = waiting.shift();
+            if (next) { next(c); return; }
+            c.busy = false;
+            c.idle = true;
+            const here = { x: c.x, y: c.y };
+            c.anchor = anchor || (() => here);
+            c.leave?.kill();
+            c.leave = stay ? null : later(linger ?? between(1.2, 2.6), () => dismiss(c));
+        }
 
-        return {
-            layer, timeline, cursors,
-            rect, point, measure, place,
-            setOrigin(fn) { originAt = fn; },
-            originAt: t => originAt(t),
-            take, spawn, fly, move, press, release, click, role, ripple, caretOf, retire, occupy, finish, destroy,
-            rand, between, pick,
-        };
+        // Wander a short way off and fade, like a collaborator leaving the file.
+        function dismiss(c) {
+            if (c.busy || !c.shown) return;
+            c.idle = false;
+            const away = c.x < layer.clientWidth / 2 ? -1 : 1;
+            gsap.to(c.body, { opacity: 0, scale: .7, duration: .4, delay: .16, ease: 'power2.in' });
+            fly(c, { x: c.x + away * between(60, 120), y: c.y + between(30, 80) }, { duration: .62 })
+                .then(done => { if (done && !c.busy) c.shown = false; });
+        }
+
+        // A selection frame, as a design tool draws it: four handles, a tag and a size readout.
+        function frame(tone, tag) {
+            const el = document.createElement('span');
+            el.className = `build-frame tone-${tone}`;
+            el.innerHTML = `<i></i><i></i><i></i><i></i>${tag ? `<b>${tag}</b>` : ''}<em></em>`;
+            layer.append(el);
+            const readout = el.lastChild;
+            return {
+                set(x, y, w, h, measure) {
+                    el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`;
+                    el.style.width = `${Math.max(0, w).toFixed(1)}px`;
+                    el.style.height = `${Math.max(0, h).toFixed(1)}px`;
+                    if (measure) readout.textContent = `${Math.round(w)} × ${Math.round(h)}`;
+                },
+                done() { gsap.to(el, { opacity: 0, duration: .34, delay: .1, ease: 'power1.out', onComplete: () => el.remove() }); },
+                remove() { gsap.killTweensOf(el); el.remove(); },
+            };
+        }
+
+        function clear() {
+            waiting.splice(0).forEach(request => request(null));
+            calls.forEach(call => call.kill());
+            calls.clear();
+            cursors.forEach(c => { stop(c); c.busy = false; hide(c); gsap.killTweensOf([c.arrow, c.ticks]); });
+            layer.querySelectorAll('.build-frame').forEach(el => { gsap.killTweensOf(el); el.remove(); });
+        }
+        function destroy() {
+            clear();
+            gsap.ticker.remove(tick);
+            window.removeEventListener('pointermove', onMove);
+            document.documentElement.removeEventListener('pointerleave', onLeave);
+            layer.remove();
+        }
+
+        return { layer, cursors, spawn, take, acquire, release, dismiss, frame, later, clear, destroy, rand, between };
     }
 
-    return { stage, spline, generator };
+    return { create, generator };
 })();

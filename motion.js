@@ -1,212 +1,151 @@
 /* Decorative choreography only. HTML remains the source of truth and is readable
-   without JS, with reduced motion, or if the animation runtime fails to load. */
+   without JS, with reduced motion, or if the animation runtime fails to load.
+
+   The introduction starts from one dot, the full stop of the name: the cursor
+   team pours out of it and assembles the hero in under two seconds. After that
+   each block builds once, in real time, when it scrolls into view. Nothing is
+   tied to scroll position, so text never waits for the reader to scroll. */
 (() => {
     const button = document.getElementById('motion-toggle');
-    if (!window.gsap || !window.ScrollTrigger || !window.Swarm || !window.Construct) return;
-    gsap.registerPlugin(ScrollTrigger);
+    if (!button || !window.gsap || !window.Swarm || !window.Construct) return;
+    const root = document.documentElement;
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const C = Construct;
     let paused = false;
     try { paused = localStorage.getItem('motion') === 'paused'; } catch (_) {}
-    let context;
-    let intro;
-    const sceneTimelines = [];
 
-    const measurements = [];
-    const stages = [];
-    const listeners = [];
-    let introDone = false;
-    let builtWidth = 0;
+    let team = null;
+    let blocks = [];
+    let observer = null;
+    let heroDone = false;
+    let heroStarted = -1;
+    let speed = 0;
 
-    /* The introduction: one origin between the name and the note card. Eighteen
-       cursors burst out of it at once, each with its own job, and fly home when
-       the hero is assembled. */
-    function heroSequence() {
-        const inner = document.querySelector('.hero-inner');
-        const stage = Swarm.stage(inner, { seed: 4093 });
-        stages.push(stage);
-        measurements.push(stage.measure);
-        const wide = () => innerWidth > 767;
-        stage.setOrigin(() => {
-            const r = stage.rect(inner);
-            return wide() ? { x: r.w * .615, y: r.h * .5 } : { x: r.w * .5, y: r.h * .4 };
-        });
-        const C = Construct;
-        const terminal = C.prepare(document.querySelector('.terminal-line'), { self: true, mode: 'bare' });
-        const name = C.prepare(document.querySelector('.name-frame'), { mode: 'outline', texts: '[data-type]' });
-        const subtitle = C.prepare(document.querySelector('.hero-subtitle'), { self: true, mode: 'bare' });
-        const actions = C.prepare(document.querySelector('.hero-actions'), { mode: 'bare', texts: '.no-typing', chips: '.btn' });
-        const note = C.prepare(document.querySelector('.hero-note'), {
-            texts: '.note-tab, .note-headline, .note-code span, .note-code strong, .note-signature',
-        });
-
-        const t = .25;
-        [terminal, subtitle, actions].forEach(part => C.reveal(stage, part, t));
-        C.write(stage, terminal.texts, t, { typists: 1, perChar: .03, fresh: true });
-        const framed = C.frame(stage, name, t + .04, { fill: false, fresh: true });
-        C.reveal(stage, name, framed.built - .1);
-        // The large name is typed by two cursors, one per line.
-        const named = C.write(stage, name.texts, framed.built - .1, { typists: 2, perChar: .085, fresh: true });
-        C.fold(stage, name, named + .1);
-        const noted = C.frame(stage, note, t + .1, { fresh: true });
-        C.reveal(stage, note, noted.built);
-        C.write(stage, note.texts, noted.built + .02, { typists: 3, perChar: .026, fresh: true });
-        const subtitled = C.write(stage, subtitle.texts, t + .5, { typists: 2, perChar: .021, fresh: true });
-        actions.chips.forEach((chip, i) => C.stamp(stage, chip, Math.min(subtitled, 1.5) + i * .16, { fresh: true }));
-
-        stage.finish();
-        intro = stage.timeline;
-        intro.eventCallback('onComplete', () => { introDone = true; });
-        intro.timeScale(1.2).play();
-        if (introDone || location.hash || window.scrollY > 20) intro.progress(1);
-        // A reader who starts scrolling is not kept waiting: the crew speeds up.
-        const hurry = () => {
-            if (window.scrollY < 40 || !intro || intro.progress() === 1) return;
-            gsap.to(intro, { timeScale: 3.2, duration: .4, overwrite: true });
-            window.removeEventListener('scroll', hurry);
-        };
-        window.addEventListener('scroll', hurry, { passive: true });
-        listeners.push(() => window.removeEventListener('scroll', hurry));
+    function stop() {
+        observer?.disconnect();
+        observer = null;
+        blocks.forEach(C.finish);
+        blocks = [];
+        team?.destroy();
+        team = null;
+        heroStarted = -1;
+        gsap.globalTimeline.timeScale(1);
     }
 
     function start() {
-        context?.revert();
-        listeners.forEach(remove => remove());
-        listeners.length = 0;
-        stages.forEach(stage => stage.destroy());
-        stages.length = 0;
-        sceneTimelines.length = 0;
-        measurements.length = 0;
+        stop();
         const enabled = !paused && !reduced.matches;
-        document.documentElement.dataset.motion = enabled ? 'on' : 'off';
+        root.dataset.motion = enabled ? 'on' : 'off';
         button.hidden = false;
         button.disabled = reduced.matches;
         button.textContent = reduced.matches ? 'Reduced motion' : paused ? 'Play motion' : 'Pause motion';
         button.setAttribute('aria-pressed', String(!enabled));
         if (!enabled) return;
-        builtWidth = innerWidth;
-        context = gsap.context(() => {});
         try {
-            context.add(() => {
-                heroSequence();
-                buildScenes();
+            const wide = innerWidth >= 768;
+            team = Swarm.create({ size: wide ? 8 : 5, labels: wide });
+            blocks = C.collect(document, team);
+            const hero = document.querySelector('.hero');
+            const skipHero = heroDone || Boolean(location.hash) || scrollY > 40;
+            blocks.forEach(b => {
+                b.hero = hero.contains(b.el);
+                // Anything the reader has already scrolled past is simply there.
+                const seen = b.hero ? skipHero : b.el.getBoundingClientRect().bottom < 0;
+                C.stage(b, seen ? 'done' : 'pending');
             });
-            ScrollTrigger.refresh();
-            if (location.hash) finishTarget(document.getElementById(location.hash.slice(1)));
+            if (skipHero) heroDone = true;
+            else playHero();
+            observe();
         } catch (error) {
             // Any partial initialization must fail open, never strand hidden content.
-            context.revert();
-            document.documentElement.dataset.motion = 'off';
+            stop();
+            root.dataset.motion = 'off';
             button.hidden = true;
             console.error('Portfolio motion unavailable:', error);
         }
     }
-    /* Section scenes. Scene time is tied to scroll distance (PIXELS_PER_SECOND), so
-       work can be scheduled by height: a panel starts building as it enters the
-       viewport, whatever the section's length or the screen size. */
-    const PIXELS_PER_SECOND = 115;
-    const LOOSE_TEXT = ':scope > .footer-text, .about-copy > .section-text';
 
-    function buildScenes() {
-        document.querySelectorAll('.section-inner, .footer-inner').forEach(sectionScene);
-    }
-
-    function sectionScene(inner, index) {
-        const stage = Swarm.stage(inner, { seed: 9001 + index * 7919 });
-        stages.push(stage);
-        const C = Construct;
-        const tag = inner.querySelector(':scope > .file-tag');
-        let top = 0;
-        const measureTop = () => { top = inner.getBoundingClientRect().top + window.scrollY; };
-        measureTop();
-        measurements.push(stage.measure, measureTop);
-
-        let duration = 0;
-        let trigger = null;
-        const range = () => {
-            const max = ScrollTrigger.maxScroll(window);
-            const distance = duration * PIXELS_PER_SECOND;
-            let start = Math.max(0, top - innerHeight * .85);
-            const end = Math.min(start + distance, max);
-            // Near the end of the page a scene still gets room to finish.
-            if (end - start < Math.min(distance, 320)) start = Math.max(0, end - Math.min(distance, 320));
-            return { start, end };
-        };
-        // The origin starts beside the file name, then follows the reader down the
-        // section a quarter of the way into the viewport, like a sticky point.
-        stage.setOrigin(time => {
-            const r = stage.rect(tag);
-            const box = stage.rect(inner);
-            const span = trigger ? { start: trigger.start, end: trigger.end } : null;
-            const scroll = span && duration
-                ? span.start + (span.end - span.start) * Math.min(1, time / duration)
-                : top - innerHeight * .85 + time * PIXELS_PER_SECOND;
-            const follow = scroll - top + innerHeight * .24;
-            // On phones the gutter is narrow: never let the origin leave the screen.
-            const left = stage.rect(document.documentElement).x + 14;
-            return { x: Math.max(left, r.x - 18), y: Math.min(box.h - 24, Math.max(r.y + r.h / 2, follow)) };
-        });
-
-        const jobs = [];
-        const heading = inner.querySelector('h2');
-        C.split(heading);
-        gsap.set(heading.querySelectorAll('.type-char'), { opacity: 0 });
-        jobs.push({ el: heading, run: at => C.write(stage, [heading], at, { perChar: .034 }) });
-        inner.querySelectorAll(LOOSE_TEXT).forEach(el => {
-            const part = C.prepare(el, { self: true, mode: 'bare' });
-            jobs.push({ el, run: at => { C.reveal(stage, part, at); return C.write(stage, part.texts, at, { perChar: .014 }); } });
-        });
-        let shellBuilt = 0;
-        inner.querySelectorAll('[data-shell]').forEach(el => {
-            const part = C.prepare(el, { shell: true });
-            jobs.push({ el, order: -1, run: at => (shellBuilt = C.frame(stage, part, at).built) });
-        });
-        inner.querySelectorAll('[data-assemble]').forEach(el => {
-            const part = C.prepare(el);
-            const inShell = el.parentElement.closest('[data-shell]');
-            jobs.push({ el, run: at => C.panel(stage, part, inShell ? Math.max(at, shellBuilt) : at) });
-        });
-
-        jobs.forEach(job => { job.y = stage.rect(job.el).y; });
-        jobs.sort((a, b) => a.y - b.y || (a.order || 0) - (b.order || 0));
-        let previous = 0;
-        jobs.forEach(job => {
-            const at = Math.max(previous + .12, .15, (job.y - innerHeight * .12) / PIXELS_PER_SECOND);
-            job.run(at);
-            previous = at;
-        });
-        duration = stage.finish();
-
-        trigger = ScrollTrigger.create({
-            animation: stage.timeline,
-            trigger: inner,
-            start: () => range().start,
-            end: () => range().end,
-            scrub: .5,
-            invalidateOnRefresh: true,
-        });
-        sceneTimelines.push({ host: inner, line: stage.timeline });
-    }
-
-    function finishTarget(target) {
-        if (!target) return;
-        intro?.progress(1);
-        sceneTimelines.forEach(({ host, line }) => {
-            if (host.contains(target) || target.contains(host)) {
-                line.progress(1);
-                line.scrollTrigger?.kill(false);
-            }
+    /* The hero. Order matters twice: it is the order cursors leave the dot and,
+       on small screens with a smaller team, who gets a cursor at all. */
+    const HERO_ORDER = ['.name-word', '.hero-note', '.terminal-line', '.hero-subtitle', '.hero-actions', '.hero-tile'];
+    function playHero() {
+        const dot = document.querySelector('.name-dot');
+        const origin = C.point(dot, .5, .62);
+        const rank = b => { const i = HERO_ORDER.findIndex(selector => b.el.matches(selector)); return i < 0 ? 99 : i; };
+        const jobs = blocks.filter(b => b.hero).sort((a, b) => rank(a) - rank(b));
+        const crew = team.cursors;
+        const step = Math.PI * 2 / crew.length;
+        heroStarted = gsap.ticker.time;
+        gsap.fromTo(dot, { scale: 0 }, { scale: 1, duration: .5, ease: 'back.out(3.2)', clearProps: 'transform' });
+        const runs = jobs.map((b, i) => new Promise(resolve => {
+            team.later(.26 + i * .05, () => {
+                if (b.stage === 'done') { resolve(); return; }
+                const cursor = i < crew.length ? team.take(crew[i]) : null;
+                if (cursor) team.spawn(cursor, origin);
+                // Two cursors stay in the hero afterwards: by the name and by the note.
+                const keep = b.el.matches('.name-line:last-child .name-word, .hero-note') ? { stay: true } : null;
+                C.run(b, { cursor, fan: -2.4 + i * step, keep, patience: .7 }).then(resolve);
+            });
+        }));
+        // Spare cursors still leave the dot with the others, then wait for work.
+        crew.slice(jobs.length).forEach((c, k) => team.later(.26 + (jobs.length + k) * .05, () => {
+            team.take(c);
+            team.spawn(c, origin);
+            const angle = -2.4 + (jobs.length + k) * step;
+            c.fly({ x: origin.x + Math.cos(angle) * 150, y: origin.y + Math.sin(angle) * 110 }, { fan: angle })
+                .then(() => team.release(c, { linger: .8 }));
+        }));
+        Promise.all(runs).then(() => {
+            heroDone = true;
+            gsap.globalTimeline.timeScale(1);
         });
     }
-    // A keyboard user or an anchor jump always gets fully readable content.
-    document.addEventListener('focusin', event => finishTarget(event.target));
+
+    function observe() {
+        const byElement = new Map(blocks.map((b, order) => { b.order = order; return [b.el, b]; }));
+        observer = new IntersectionObserver(entries => {
+            const batch = entries.filter(entry => entry.isIntersecting).map(entry => byElement.get(entry.target))
+                .filter(b => b && !b.started && b.stage === 'pending').sort((a, b) => a.order - b.order);
+            // While the hero is still assembling, blocks below it wait their turn.
+            const hold = heroStarted < 0 || heroDone ? 0 : Math.max(0, 1.3 - (gsap.ticker.time - heroStarted));
+            batch.forEach((b, i) => {
+                observer.unobserve(b.el);
+                if (b.el.getBoundingClientRect().bottom < 0) { C.finish(b); return; }
+                // A reader racing down the page gets the content at once, without the show.
+                const unattended = Math.abs(speed) > 2800 && performance.now() - lastTime < 140;
+                team.later(hold + i * .09, () => C.run(b, { unattended }));
+            });
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0 });
+        blocks.filter(b => !b.hero && b.stage === 'pending').forEach(b => observer.observe(b.el));
+    }
+
+    // Finish every block above the target at once; with `inclusive`, the target's own blocks too.
+    function finishThrough(target, inclusive) {
+        if (!target || !blocks.length) return;
+        blocks.forEach(b => {
+            const holds = b.el.contains(target);
+            const inside = target.contains(b.el);
+            const before = !holds && Boolean(target.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_PRECEDING);
+            if (before || (inclusive && (holds || inside))) C.finish(b);
+        });
+    }
+    // A keyboard user always lands on fully visible content.
+    document.addEventListener('focusin', event => finishThrough(event.target, true));
+    // An anchor jump skips the show for everything above; the target builds on arrival.
     document.addEventListener('click', event => {
         const anchor = event.target.closest('a[href^="#"]');
-        if (anchor) finishTarget(document.getElementById(anchor.getAttribute('href').slice(1)));
+        if (anchor) finishThrough(document.getElementById(anchor.getAttribute('href').slice(1)), false);
     });
-    window.addEventListener('hashchange', () => finishTarget(document.getElementById(location.hash.slice(1))));
-    document.addEventListener('visibilitychange', () => {
-        if (intro && intro.progress() < 1) intro.paused(document.hidden);
-    });
+    window.addEventListener('hashchange', () => finishThrough(document.getElementById(location.hash.slice(1)), false));
+
+    let lastY = scrollY, lastTime = performance.now();
+    window.addEventListener('scroll', () => {
+        const now = performance.now();
+        if (now > lastTime) speed = (scrollY - lastY) / (now - lastTime) * 1000;
+        lastY = scrollY; lastTime = now;
+        // Scrolling away during the introduction: the team hurries instead of holding the reader back.
+        if (heroStarted >= 0 && !heroDone && scrollY > 80) gsap.globalTimeline.timeScale(2.4);
+    }, { passive: true });
 
     button.addEventListener('click', () => {
         paused = !paused;
@@ -214,19 +153,5 @@
         start();
     });
     reduced.addEventListener('change', start);
-    /* Line breaks and the order of work depend on the width, so a real width change
-       rebuilds the scenes. Height-only changes (mobile toolbars) only re-measure. */
-    let resizeTimer = 0;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-            if (document.documentElement.dataset.motion === 'on' && Math.abs(innerWidth - builtWidth) > 40) {
-                if (intro && intro.progress() > .98) introDone = true;
-                start();
-            }
-        }, 350);
-    });
-    ScrollTrigger.addEventListener('refreshInit', () => measurements.forEach(measure => measure()));
     start();
-    document.fonts?.ready.then(() => ScrollTrigger.refresh());
 })();

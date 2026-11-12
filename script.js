@@ -118,4 +118,56 @@ const calm = () => reducedMotion.matches || root.dataset.motion === 'off';
     window.addEventListener('resize', schedule);
     measure();
 })();
+
+// ---------- Cards: a light under the pointer ----------
+document.addEventListener('pointermove', event => {
+    if (event.pointerType === 'touch') return;
+    const card = event.target.closest?.('.spot');
+    if (!card) return;
+    const box = card.getBoundingClientRect();
+    card.style.setProperty('--sx', `${(event.clientX - box.left).toFixed(0)}px`);
+    card.style.setProperty('--sy', `${(event.clientY - box.top).toFixed(0)}px`);
+}, { passive: true });
+
+// ---------- Hero: the tiles drift a little with the pointer ----------
+(function heroParallax() {
+    const hero = document.querySelector('.hero');
+    const board = document.querySelector('.hero-board');
+    if (!hero || !board) return;
+    let frame = 0, targetX = 0, targetY = 0, x = 0, y = 0;
+    function paint() {
+        frame = 0;
+        x += (targetX - x) * .08;
+        y += (targetY - y) * .08;
+        board.style.setProperty('--mx', x.toFixed(3));
+        board.style.setProperty('--my', y.toFixed(3));
+        if (Math.abs(targetX - x) + Math.abs(targetY - y) > .002) frame = requestAnimationFrame(paint);
+    }
+    function aim(nextX, nextY) {
+        targetX = nextX; targetY = nextY;
+        if (!frame) frame = requestAnimationFrame(paint);
+    }
+    hero.addEventListener('pointermove', event => {
+        if (event.pointerType === 'touch' || !finePointer.matches || calm()) return;
+        const box = hero.getBoundingClientRect();
+        aim((event.clientX - box.left) / box.width * 2 - 1, (event.clientY - box.top) / box.height * 2 - 1);
+    }, { passive: true });
+    hero.addEventListener('pointerleave', () => aim(0, 0));
+})();
+
+// ---------- Numbers count up once their panel has been built ----------
+document.addEventListener('built', event => {
+    if (calm()) return;
+    event.target.querySelectorAll?.('[data-count]').forEach(el => {
+        const goal = Number(el.dataset.count);
+        const decimals = (el.dataset.count.split('.')[1] || '').length;
+        const started = performance.now();
+        const step = now => {
+            const p = Math.min(1, (now - started) / 650);
+            el.textContent = (goal * (1 - Math.pow(1 - p, 3))).toFixed(decimals);
+            if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    });
+});
 })();

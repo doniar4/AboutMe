@@ -1,27 +1,43 @@
+/* Small page behaviours that do not need the animation runtime. Each one is
+   optional: without this file the page is still complete and readable. */
+(() => {
+const root = document.documentElement;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+const calm = () => reducedMotion.matches || root.dataset.motion === 'off';
+
 // ---------- Theme toggle (light / dark) ----------
 (function themeToggle() {
     const button = document.getElementById('theme-toggle');
     if (!button) return;
+    // data-theme is already set by the inline script in <head>.
+    const current = () => root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 
-    // data-theme is already set by the inline script in <head>,
-    // this just keeps the button and future clicks in sync.
-    function currentTheme() {
-        return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    function sync() {
+        button.setAttribute('aria-pressed', String(current() === 'light'));
+        button.setAttribute('aria-label', current() === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
     }
-
-    function applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        button.setAttribute('aria-pressed', String(theme === 'light'));
-        button.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+    function apply(theme) {
+        root.setAttribute('data-theme', theme);
+        sync();
         // Storage can be unavailable in private or embedded browsing contexts.
         try { localStorage.setItem('theme', theme); } catch (_) {}
     }
-
-    button.setAttribute('aria-pressed', String(currentTheme() === 'light'));
-    button.setAttribute('aria-label', currentTheme() === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+    sync();
 
     button.addEventListener('click', () => {
-        applyTheme(currentTheme() === 'light' ? 'dark' : 'light');
+        const next = current() === 'light' ? 'dark' : 'light';
+        if (!document.startViewTransition || calm()) { apply(next); return; }
+        // The new theme opens as a circle from the button that was pressed.
+        const box = button.getBoundingClientRect();
+        const x = box.left + box.width / 2, y = box.top + box.height / 2;
+        const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        document.startViewTransition(() => apply(next)).ready.then(() => {
+            root.animate(
+                { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+                { duration: 560, easing: 'cubic-bezier(.4, 0, .2, 1)', pseudoElement: '::view-transition-new(root)' },
+            );
+        }).catch(() => {});
     });
 })();
 
@@ -29,16 +45,8 @@
 (function pageSpotlight() {
     const glow = document.querySelector('.pointer-glow');
     if (!glow) return;
-
-    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let frame = 0;
-    let x = 0;
-    let y = 0;
-    let lightX = 0;
-    let lightY = 0;
-    let initialized = false;
-    const enabled = () => finePointer.matches && !reducedMotion.matches && document.documentElement.dataset.motion !== 'off';
+    let frame = 0, x = 0, y = 0, lightX = 0, lightY = 0, initialized = false;
+    const enabled = () => finePointer.matches && !calm();
 
     function hide() {
         if (frame) cancelAnimationFrame(frame);
@@ -46,7 +54,6 @@
         glow.classList.remove('is-active');
         initialized = false;
     }
-
     function paint() {
         frame = 0;
         if (!enabled() || document.hidden) return;
@@ -57,22 +64,58 @@
         glow.classList.add('is-active');
         if (Math.abs(x - lightX) + Math.abs(y - lightY) > .2) frame = requestAnimationFrame(paint);
     }
-
     document.addEventListener('pointermove', event => {
         if (!enabled() || event.pointerType === 'touch') return;
-        x = event.clientX;
-        y = event.clientY;
+        x = event.clientX; y = event.clientY;
         if (!initialized) { lightX = x; lightY = y; initialized = true; }
         // Coalesce multiple pointer events into a single update per frame.
         if (!frame) frame = requestAnimationFrame(paint);
     }, { passive: true });
-
-    document.documentElement.addEventListener('pointerleave', hide);
+    root.addEventListener('pointerleave', hide);
     window.addEventListener('blur', hide);
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) hide();
-    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); });
     finePointer.addEventListener('change', hide);
     reducedMotion.addEventListener('change', hide);
 })();
 
+// ---------- Header: which file is open, and how far down the page ----------
+(function header() {
+    const header = document.querySelector('.site-header');
+    const links = new Map([...document.querySelectorAll('.main-nav a[href^="#"]')]
+        .map(link => [link.getAttribute('href').slice(1), link]));
+    if (!header || !('IntersectionObserver' in window)) return;
+
+    // The section crossing the middle of the screen is the open one.
+    const spy = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            const link = links.get(entry.target.id);
+            if (!link) return;
+            if (entry.isIntersecting) {
+                links.forEach(other => other.removeAttribute('aria-current'));
+                link.setAttribute('aria-current', 'true');
+            } else if (link.getAttribute('aria-current')) {
+                link.removeAttribute('aria-current');
+            }
+        });
+    }, { rootMargin: '-45% 0px -54% 0px' });
+    links.forEach((_, id) => { const section = document.getElementById(id); if (section) spy.observe(section); });
+
+    const rails = [...document.querySelectorAll('[data-rail]')];
+    let frame = 0;
+    function measure() {
+        frame = 0;
+        const max = root.scrollHeight - innerHeight;
+        header.style.setProperty('--progress', max > 0 ? Math.min(1, scrollY / max).toFixed(4) : '0');
+        // A rail fills as its list passes the lower third of the screen.
+        rails.forEach(rail => {
+            const box = rail.getBoundingClientRect();
+            const filled = (innerHeight * .68 - box.top) / Math.max(1, box.height);
+            rail.style.setProperty('--rail', Math.min(1, Math.max(0, filled)).toFixed(4));
+        });
+    }
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    measure();
+})();
+})();

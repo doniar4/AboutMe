@@ -62,8 +62,8 @@
                 <div class="hero-copy">
                     <p class="terminal-line" data-build="place" data-from="-110,0"><span class="prompt">doniar4</span><span class="path"> / </span>student &amp; developer</p>
                     <h1 class="hero-title">
-                        <span class="name-line"><span class="name-word" data-build="place" data-from="offscreen">Daniyar</span></span>
-                        <span class="name-line"><span class="name-word" data-build="place" data-from="offscreen">Idirov</span><span class="name-dot">.</span></span>
+                        <span class="name-line"><span class="name-word" data-build="place" data-from="offscreen" data-tag="h1">Daniyar</span></span>
+                        <span class="name-line"><span class="name-word" data-build="place" data-from="offscreen" data-tag="h1">Idirov</span><span class="name-dot">.</span></span>
                     </h1>
                     <p class="hero-subtitle" data-build="place" data-from="below">C++ problem sets, web apps, and hardware experiments. Making ideas work, one commit at a time.</p>
                     <div class="hero-actions" data-build="pop">
@@ -71,20 +71,36 @@
                         <a href="#contact" class="btn btn-ghost">Let’s talk</a>
                     </div>
                 </div>
-                <aside class="hero-note" aria-label="Current focus" data-build="draw">
-                    <div class="note-tab">now.md <span aria-hidden="true">↗</span></div>
-                    <p class="note-headline">A little curiosity.<br>A lot of building.</p>
-                    <div class="note-code"><span>working_on</span><strong>NIS Hub</strong><span>preparing_for</span><strong>AP CSP</strong></div>
-                    <span class="note-signature">from idea → something real</span>
-                </aside>
+                <div class="hero-board">
+                    <aside class="hero-note" aria-label="Current focus" data-build="draw">
+                        <div class="note-tab"><span>now.md</span><i class="live" aria-hidden="true"></i></div>
+                        <p class="note-headline">A little curiosity.<br>A lot of building.</p>
+                        <div class="note-code"><span>working_on</span><strong>NIS Hub</strong><span>preparing_for</span><strong>AP CSP</strong></div>
+                        <span class="note-signature">from idea → something real</span>
+                    </aside>
+                    <ul class="hero-tiles" aria-label="What I build">
+                        <li class="hero-tile tile-a t-sky" data-build="place" data-from="-70,-60,-10" data-frame="off">
+                            <span class="tile-glyph" aria-hidden="true">C++</span>
+                            <span class="tile-text"><b>Problem sets</b><small>algorithms &amp; math</small></span>
+                        </li>
+                        <li class="hero-tile tile-b t-mint" data-build="place" data-from="90,-20,9" data-frame="off">
+                            <span class="tile-glyph" aria-hidden="true">&lt;/&gt;</span>
+                            <span class="tile-text"><b>Web apps</b><small>Next.js · TypeScript</small></span>
+                        </li>
+                        <li class="hero-tile tile-c t-coral" data-build="place" data-from="-40,80,-7" data-frame="off">
+                            <span class="tile-glyph" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" focusable="false"><rect x="5.5" y="5.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5.5V2.5M12 5.5V2.5M8 17.5v-3M12 17.5v-3M5.5 8h-3M5.5 12h-3M17.5 8h-3M17.5 12h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+                            <span class="tile-text"><b>Hardware</b><small>experiments</small></span>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </section>
 
         <!-- ABOUT -->
-        <section id="about" class="section">
+        <section id="about" class="section t-sky">
             <div class="section-inner">
                 <p class="file-tag" data-build="rise">about.md</p>
-                <h2 class="section-title" data-build="place">Behind the commits</h2>
+                <h2 class="section-title" data-build="place" data-from="offscreen">Behind the commits</h2>
                 <div class="about-layout"><div class="about-copy" data-build="rise" data-items=".section-text">
                 <p class="section-text">
                     Algorithms, data structures, and computer science take up most of my study time.

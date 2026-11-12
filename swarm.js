@@ -62,6 +62,8 @@ window.Swarm = (() => {
             };
             gsap.set(body, { opacity: 0, scale: .4, transformOrigin: '0 0' });
             c.fly = (to, options) => fly(c, to, options);
+            // An away cursor can simply turn up at a point outside the screen; false if it is in sight.
+            c.appear = at => { if (c.shown && inView(c)) return false; spawn(c, at); return true; };
             c.set = (x, y) => { c.x = x; c.y = y; };
             c.press = () => press(c);
             c.release = () => lift(c);
@@ -158,7 +160,7 @@ window.Swarm = (() => {
             settle?.(false);
         }
 
-        function fly(c, target, { duration, bulge, fan, radius } = {}) {
+        function fly(c, target, { duration, bulge, fan, radius, onMove } = {}) {
             stop(c);
             c.idle = false;
             const to = typeof target === 'function' ? target() : target;
@@ -177,7 +179,8 @@ window.Swarm = (() => {
                 const reach = radius ?? between(90, 170);
                 c1 = { x: from.x + Math.cos(fan) * reach, y: from.y + Math.sin(fan) * reach };
             }
-            duration ??= clamp(.34 + d / 1750, .44, .98) * between(.94, 1.1) + (fan !== undefined ? .1 : 0);
+            // Leaving the origin is a quick dash; ordinary flights take their time.
+            duration ??= fan !== undefined ? clamp(.3 + d / 1900, .4, .7) : clamp(.3 + d / 2000, .4, .86) * between(.95, 1.08);
             return new Promise(resolve => {
                 const state = { p: 0 };
                 c.settle = resolve;
@@ -187,6 +190,7 @@ window.Swarm = (() => {
                         const t = minJerk(state.p), u = 1 - t;
                         c.x = u * u * u * from.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * to.x;
                         c.y = u * u * u * from.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * to.y;
+                        onMove?.(c);
                     },
                     onComplete() { c.tween = null; c.settle = null; resolve(true); },
                 });
@@ -244,7 +248,7 @@ window.Swarm = (() => {
             const here = { x: c.x, y: c.y };
             c.anchor = anchor || (() => here);
             c.leave?.kill();
-            c.leave = stay ? null : later(linger ?? between(1.2, 2.6), () => dismiss(c));
+            c.leave = stay ? null : later(linger ?? between(.7, 1.5), () => dismiss(c));
         }
 
         // Wander a short way off and fade, like a collaborator leaving the file.
@@ -252,9 +256,10 @@ window.Swarm = (() => {
             if (c.busy || !c.shown) return;
             c.idle = false;
             const away = c.x < layer.clientWidth / 2 ? -1 : 1;
-            gsap.to(c.body, { opacity: 0, scale: .7, duration: .4, delay: .16, ease: 'power2.in' });
-            fly(c, { x: c.x + away * between(60, 120), y: c.y + between(30, 80) }, { duration: .62 })
-                .then(done => { if (done && !c.busy) c.shown = false; });
+            const gone = fly(c, { x: c.x + away * between(60, 120), y: c.y + between(30, 80) }, { duration: .62 });
+            // The fade starts after fly(), which would otherwise cancel it by showing the cursor.
+            gsap.to(c.body, { opacity: 0, scale: .7, duration: .4, delay: .16, ease: 'power2.in', overwrite: true });
+            gone.then(done => { if (done && !c.busy) c.shown = false; });
         }
 
         // A selection frame, as a design tool draws it: four handles, a tag and a size readout.

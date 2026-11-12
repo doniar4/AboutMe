@@ -52,6 +52,7 @@
             </svg>
         </button>
         </div>
+        <span class="scroll-progress" aria-hidden="true"></span>
     </header>
 
     <main id="top">
@@ -162,25 +163,25 @@
         </section>
 
         <!-- STACK -->
-        <section id="stack" class="section section-alt">
+        <section id="stack" class="section t-amber">
             <div class="section-inner">
                 <p class="file-tag" data-build="rise">stack.json</p>
-                <h2 class="section-title" data-build="place">Tools I work with</h2>
+                <h2 class="section-title" data-build="place" data-from="offscreen">Tools I work with</h2>
                 <div class="stack-groups" data-build="draw">
-                    <section class="stack-group" aria-labelledby="stack-languages">
+                    <section class="stack-group t-sky" aria-labelledby="stack-languages">
                         <h3 id="stack-languages">Languages</h3>
                         <ul class="stack-list" data-build="pop" aria-label="Programming and markup languages">
                             <li>TypeScript</li><li>JavaScript</li><li>C++</li>
                             <li>Python</li><li>HTML</li><li>CSS</li>
                         </ul>
                     </section>
-                    <section class="stack-group" aria-labelledby="stack-frameworks">
+                    <section class="stack-group t-mint" aria-labelledby="stack-frameworks">
                         <h3 id="stack-frameworks">Libraries &amp; frameworks</h3>
                         <ul class="stack-list" data-build="pop" aria-label="Libraries and frameworks used in projects">
                             <li>React</li><li>Next.js</li><li>GSAP</li><li>Zod</li>
                         </ul>
                     </section>
-                    <section class="stack-group" aria-labelledby="stack-tools">
+                    <section class="stack-group t-amber" aria-labelledby="stack-tools">
                         <h3 id="stack-tools">Data &amp; tools</h3>
                         <ul class="stack-list" data-build="pop" aria-label="Data services and development tools">
                             <li>Supabase</li><li>PostgreSQL</li><li>Node.js</li>
@@ -192,11 +193,11 @@
         </section>
 
         <!-- EXPERIENCE -->
-        <section id="experience" class="section">
+        <section id="experience" class="section t-coral">
             <div class="section-inner">
                 <p class="file-tag" data-build="rise">experience.log</p>
-                <h2 class="section-title" data-build="place">Hackathons &amp; pitches</h2>
-                <div class="experience-list">
+                <h2 class="section-title" data-build="place" data-from="offscreen">Hackathons &amp; pitches</h2>
+                <div class="experience-list" data-rail>
                 <article class="experience-entry" data-build="row" data-items=".log-status">
                     <span class="log-status status-completed">participant</span>
                     <div class="log-body">
@@ -226,12 +227,17 @@
         </section>
 
         <!-- GOALS -->
-        <section id="goals" class="section">
+        <section id="goals" class="section t-sky">
             <div class="section-inner">
                 <p class="file-tag" data-build="rise">goals.log</p>
-                <h2 class="section-title" data-build="place">Next on the roadmap</h2>
+                <h2 class="section-title" data-build="place" data-from="offscreen">Next on the roadmap</h2>
                 <div class="roadmap-grid">
                 <div class="dream-note" data-build="draw">
+                    <svg class="dream-route" viewBox="0 0 300 64" fill="none" aria-hidden="true" focusable="false">
+                        <path class="route-line" d="M16 50C80 50 96 14 168 18s86 22 112-4"/>
+                        <rect class="route-now" x="9" y="43" width="14" height="14" rx="3"/>
+                        <path class="route-flag" d="M280 30V8l14 5-14 5"/>
+                    </svg>
                     <p class="file-tag">long_term.target</p>
                     <h3>MIT is the long-term target</h3>
                     <p>My dream university is the Massachusetts Institute of Technology.
@@ -282,10 +288,10 @@
 
     </main>
 
-    <footer id="contact" class="site-footer">
+    <footer id="contact" class="site-footer ink t-amber">
         <div class="footer-inner">
             <p class="file-tag" data-build="rise">contact.sh</p>
-            <h2 class="footer-title" data-build="place">Start a conversation</h2>
+            <h2 class="footer-title" data-build="place" data-from="offscreen">Start a conversation</h2>
             <p class="footer-text" data-build="rise">
                 Got a project, a hackathon, or a good problem to work on? I’m in.
             </p>

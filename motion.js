@@ -59,6 +59,8 @@
             });
             if (skipHero) heroDone = true;
             else playHero();
+            // Opened at a section link: everything above it is ready before the browser jumps there.
+            if (location.hash) finishThrough(document.getElementById(location.hash.slice(1)), false);
             observe();
         } catch (error) {
             // Any partial initialization must fail open, never strand hidden content.
@@ -126,6 +128,14 @@
     function observe() {
         const byElement = new Map(blocks.map((b, order) => { b.order = order; return [b.el, b]; }));
         observer = new IntersectionObserver(entries => {
+            // Anything that jumped past above the screen without ever being seen is simply there.
+            entries.forEach(entry => {
+                const b = byElement.get(entry.target);
+                if (b && !entry.isIntersecting && entry.boundingClientRect.bottom < 0 && b.stage === 'pending') {
+                    observer.unobserve(b.el);
+                    C.finish(b);
+                }
+            });
             const batch = entries.filter(entry => entry.isIntersecting).map(entry => byElement.get(entry.target))
                 .filter(b => b && !b.started && b.stage === 'pending').sort((a, b) => a.order - b.order);
             // While the hero is still assembling, blocks below it wait their turn.

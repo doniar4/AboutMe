@@ -6,9 +6,12 @@
    each block builds once, in real time, when it scrolls into view. Nothing is
    tied to scroll position, so text never waits for the reader to scroll. */
 (() => {
-    const button = document.getElementById('motion-toggle');
-    if (!button || !window.gsap || !window.Swarm || !window.Construct) return;
     const root = document.documentElement;
+    const button = document.getElementById('motion-toggle');
+    if (!button || !window.gsap || !window.Swarm || !window.Construct) {
+        root.dataset.motion = 'off';
+        return;
+    }
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const C = Construct;
     let paused = false;
@@ -33,6 +36,7 @@
     }
 
     function start() {
+        window.motionStarted = true;
         stop();
         const enabled = !paused && !reduced.matches;
         root.dataset.motion = enabled ? 'on' : 'off';
@@ -77,28 +81,46 @@
         const step = Math.PI * 2 / crew.length;
         heroStarted = gsap.ticker.time;
         gsap.fromTo(dot, { scale: 0 }, { scale: 1, duration: .5, ease: 'back.out(3.2)', clearProps: 'transform' });
+        const start = i => .12 + i * .035;
         const runs = jobs.map((b, i) => new Promise(resolve => {
-            team.later(.26 + i * .05, () => {
+            team.later(start(i), () => {
                 if (b.stage === 'done') { resolve(); return; }
                 const cursor = i < crew.length ? team.take(crew[i]) : null;
                 if (cursor) team.spawn(cursor, origin);
-                // Two cursors stay in the hero afterwards: by the name and by the note.
-                const keep = b.el.matches('.name-line:last-child .name-word, .hero-note') ? { stay: true } : null;
+                // Two cursors stay in the hero afterwards, by the name and by the note. The rest leave quickly.
+                const keep = b.el.matches('.hero-note') ? { stay: true }
+                    : b.el.matches('.name-line:last-child .name-word') ? { stay: true, anchor: () => C.point(dot, 1, .5, 16, 6) }
+                    : { linger: team.between(.25, .7) };
                 C.run(b, { cursor, fan: -2.4 + i * step, keep, patience: .7 }).then(resolve);
             });
         }));
         // Spare cursors still leave the dot with the others, then wait for work.
-        crew.slice(jobs.length).forEach((c, k) => team.later(.26 + (jobs.length + k) * .05, () => {
+        crew.slice(jobs.length).forEach((c, k) => team.later(start(jobs.length + k), () => {
             team.take(c);
             team.spawn(c, origin);
             const angle = -2.4 + (jobs.length + k) * step;
             c.fly({ x: origin.x + Math.cos(angle) * 150, y: origin.y + Math.sin(angle) * 110 }, { fan: angle })
-                .then(() => team.release(c, { linger: .8 }));
+                .then(() => team.release(c, { linger: .5 }));
         }));
         Promise.all(runs).then(() => {
             heroDone = true;
             gsap.globalTimeline.timeScale(1);
         });
+    }
+
+    /* When the contact section stands, everyone who is free walks over and waits
+       beside its title: the team that built the page, next to "Start a conversation". */
+    const SPOTS = [[0, -58], [96, -84], [190, -40], [-30, 14], [70, -8], [164, 36], [20, 84], [118, 96]];
+    function gather() {
+        const title = document.querySelector('.footer-title');
+        if (!team || !title || innerWidth < 960) return;
+        const crew = team;
+        SPOTS.slice(0, crew.cursors.length).forEach(([dx, dy], i) => crew.later(.1 + i * .08, () => {
+            const anchor = () => C.point(title, 1, .5, 120 + dx, dy);
+            crew.acquire(anchor(), 1.6).then(c => {
+                if (c) c.fly(anchor()).then(arrived => { if (arrived) crew.release(c, { stay: true, anchor }); });
+            });
+        }));
     }
 
     function observe() {
@@ -107,16 +129,18 @@
             const batch = entries.filter(entry => entry.isIntersecting).map(entry => byElement.get(entry.target))
                 .filter(b => b && !b.started && b.stage === 'pending').sort((a, b) => a.order - b.order);
             // While the hero is still assembling, blocks below it wait their turn.
-            const hold = heroStarted < 0 || heroDone ? 0 : Math.max(0, 1.3 - (gsap.ticker.time - heroStarted));
+            const hold = heroStarted < 0 || heroDone ? 0 : Math.max(0, 1.1 - (gsap.ticker.time - heroStarted));
             batch.forEach((b, i) => {
                 observer.unobserve(b.el);
                 if (b.el.getBoundingClientRect().bottom < 0) { C.finish(b); return; }
                 // A reader racing down the page gets the content at once, without the show.
                 const unattended = Math.abs(speed) > 2800 && performance.now() - lastTime < 140;
-                team.later(hold + i * .09, () => C.run(b, { unattended }));
+                team.later(hold + i * .06, () => C.run(b, { unattended }));
             });
-        }, { rootMargin: '0px 0px -8% 0px', threshold: 0 });
+        }, { rootMargin: '0px 0px -4% 0px', threshold: 0 });
         blocks.filter(b => !b.hero && b.stage === 'pending').forEach(b => observer.observe(b.el));
+        const footer = blocks.filter(b => b.el.closest('.site-footer'));
+        if (footer.some(b => b.stage === 'pending')) Promise.all(footer.map(C.whenDone)).then(gather);
     }
 
     // Finish every block above the target at once; with `inclusive`, the target's own blocks too.

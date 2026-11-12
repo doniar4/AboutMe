@@ -22,17 +22,21 @@ window.Construct = (() => {
         const r = box(el);
         return { x: r.x + r.w * fx + dx, y: r.y + r.h * fy + dy };
     }
-    const tagOf = el => `&lt;${el.tagName.toLowerCase()}&gt;`;
+    const tagOf = el => `&lt;${el.dataset.tag || el.tagName.toLowerCase()}&gt;`;
 
     function create(el, team) {
         return {
             el, team, kind: el.dataset.build, from: el.dataset.from || '', items: el.dataset.items || '',
             stage: '', started: false, cancelled: false, parent: null,
             cursor: null, preset: null, fan: undefined, frame: null,
-            tweens: new Set(), touched: new Set(), waiters: [],
+            tweens: new Set(), touched: new Set(), waiters: [], starters: [],
         };
     }
-    function stage(b, value) { b.stage = value; b.el.dataset.stage = value; }
+    function stage(b, value) {
+        b.stage = value;
+        b.el.dataset.stage = value;
+        if (value !== 'pending') b.starters.splice(0).forEach(resolve => resolve());
+    }
     function touch(b, ...elements) { elements.flat().forEach(el => el && b.touched.add(el)); }
 
     // A progress tween whose promise also resolves when the block is finished early.
@@ -80,6 +84,7 @@ window.Construct = (() => {
         settle(b);
     }
     const whenDone = b => b.stage === 'done' ? Promise.resolve() : new Promise(resolve => b.waiters.push(resolve));
+    const whenBegun = b => b.stage === 'running' || b.stage === 'done' ? Promise.resolve() : new Promise(resolve => b.starters.push(resolve));
 
     async function hire(b, at, patience = .2) {
         if (b.preset) { b.cursor = b.preset; b.preset = null; return b.cursor; }
@@ -118,7 +123,7 @@ window.Construct = (() => {
         el.style.clipPath = 'inset(50%)';
         touch(b, el);
         stage(b, 'running');
-        await play(b, clamp(.34 + Math.hypot(r.w, r.h) / 2600, .42, .66), 'power2.inOut', p => {
+        await play(b, clamp(.32 + Math.hypot(r.w, r.h) / 3000, .4, .56), 'power2.inOut', p => {
             const w = r.w * p, h = r.h * p;
             const left = sx > 0 ? 0 : r.w - w, top = sy > 0 ? 0 : r.h - h;
             el.style.clipPath = `inset(${top.toFixed(1)}px ${(r.w - left - w).toFixed(1)}px ${(r.h - top - h).toFixed(1)}px ${left.toFixed(1)}px round ${radius})`;
@@ -150,15 +155,22 @@ window.Construct = (() => {
         const { el } = b;
         const r = box(el);
         const off = offset(b, r);
-        const grab = { x: r.x + Math.min(30, r.w * .14), y: r.y + r.h * .62 };
+        // An element pulled in from outside the screen is held by its leading end.
+        const inset = Math.min(30, r.w * .14);
+        const grab = { x: b.from === 'offscreen' ? r.x + r.w - inset : r.x + inset, y: r.y + r.h * .62 };
         gsap.set(el, { x: off.x, y: off.y, rotation: off.tilt, opacity: 0 });
         touch(b, el);
         stage(b, 'running');
-        const c = await hire(b, { x: grab.x + off.x, y: grab.y + off.y });
+        const from = { x: grab.x + off.x, y: grab.y + off.y };
+        const c = await hire(b, from);
         if (b.cancelled) return;
         if (c) {
-            await c.fly({ x: grab.x + off.x, y: grab.y + off.y }, takeFan(b));
-            if (b.cancelled) return;
+            // A cursor that is away starts outside the screen already holding the element: no flight first.
+            const outside = from.x < scrollX - 10;
+            if (!(outside && b.fan === undefined && c.appear(from))) {
+                await c.fly(from, takeFan(b));
+                if (b.cancelled) return;
+            }
             c.press();
             if (el.dataset.frame !== 'off') b.frame = b.team.frame(c.tone, tagOf(el));
         }
@@ -172,36 +184,64 @@ window.Construct = (() => {
         if (b.cancelled) return;
         c?.release();
         b.frame?.done(); b.frame = null;
-        rest(b, () => point(el, 1, 1, 10, 6));
+        rest(b, () => point(el, 1, .5, 14, 4));
     }
 
     const itemsOf = b => b.items ? [...b.el.querySelectorAll(b.items)] : [...b.el.children];
 
-    // One cursor hops along a row of chips or buttons; each click makes the next one appear.
+    /* Buttons and chips appear under one cursor. A few items get a click each;
+       a long row is swept in one glide and every chip pops as the cursor passes it. */
     async function pop(b) {
         const items = itemsOf(b);
         gsap.set(items, { opacity: 0, scale: .5 });
         touch(b, items);
         stage(b, 'running');
         if (!items.length) return;
-        const c = await hire(b, point(items[0]));
+        const show = item => to(b, item, { opacity: 1, scale: 1, duration: .4, ease: 'back.out(2.2)' });
+        const spot = item => { const r = box(item); return { x: r.x + r.w * .5, y: r.y + r.h * .62 }; };
+        const c = await hire(b, spot(items[0]));
         if (b.cancelled) return;
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            if (c) {
-                const r = box(item);
-                const at = { x: r.x + r.w * .5, y: r.y + r.h * .62 };
-                const hop = Math.hypot(at.x - c.x, at.y - c.y);
-                await c.fly(at, i ? { duration: clamp(.1 + hop / 1500, .13, .3), bulge: .12 } : takeFan(b));
-                if (b.cancelled) return;
-                c.click();
-            } else if (i) {
-                await wait(b, .05);
+        if (!c) {
+            for (const item of items) {
+                show(item);
+                await wait(b, .045);
                 if (b.cancelled) return;
             }
-            to(b, item, { opacity: 1, scale: 1, duration: .38, ease: 'back.out(2.2)' });
+        } else if (items.length <= 3) {
+            for (let i = 0; i < items.length; i++) {
+                const at = spot(items[i]);
+                const hop = Math.hypot(at.x - c.x, at.y - c.y);
+                await c.fly(at, i ? { duration: clamp(.12 + hop / 1400, .16, .34), bulge: .14 } : takeFan(b));
+                if (b.cancelled) return;
+                c.click();
+                show(items[i]);
+            }
+        } else {
+            // Lines of a wrapped list are swept one after another.
+            const lines = [];
+            items.forEach(item => {
+                const y = box(item).y, line = lines[lines.length - 1];
+                if (line && Math.abs(line.y - y) < 6) line.items.push(item);
+                else lines.push({ y, items: [item] });
+            });
+            for (const line of lines) {
+                const first = spot(line.items[0]), last = spot(line.items[line.items.length - 1]);
+                await c.fly({ x: first.x - 14, y: first.y }, takeFan(b));
+                if (b.cancelled) return;
+                c.press();
+                const waitingItems = line.items.map(item => ({ item, x: spot(item).x }));
+                await c.fly({ x: last.x + 10, y: last.y }, {
+                    duration: clamp(.28 + (last.x - first.x) / 1500, .36, .8), bulge: .03,
+                    onMove(cursor) {
+                        while (waitingItems.length && cursor.x >= waitingItems[0].x - 6) show(waitingItems.shift().item);
+                    },
+                });
+                if (b.cancelled) return;
+                waitingItems.forEach(entry => show(entry.item));
+                c.release();
+            }
         }
-        await wait(b, .36);
+        await wait(b, .4);
         if (b.cancelled) return;
         const last = items[items.length - 1];
         rest(b, () => point(last, 1, 1, 8, 4));
@@ -247,7 +287,7 @@ window.Construct = (() => {
     /* Build one block. Options: cursor (a specific team member), fan (leave the
        origin in this direction), unattended (no cursor at all), keep (how the
        cursor rests afterwards), patience (seconds to wait for a free cursor).
-       A nested block waits for the block around it. */
+       A nested block starts shortly after the block around it. */
     async function run(b, options = {}) {
         if (b.started || b.stage === 'done') return whenDone(b);
         b.started = true;
@@ -257,8 +297,10 @@ window.Construct = (() => {
         b.keep = options.keep;
         b.patience = options.patience;
         if (b.parent && b.parent.stage !== 'done') {
+            // Chips inside a panel set off while the panel is still being drawn, so both finish together.
             run(b.parent, { unattended: b.unattended });
-            await whenDone(b.parent);
+            await whenBegun(b.parent);
+            if (b.parent.stage !== 'done') await wait(b, .24);
         }
         if (b.cancelled) return;
         try {

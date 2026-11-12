@@ -5,11 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         (function () {
-            var stored;
-            try { stored = localStorage.getItem('theme'); } catch (_) {}
-            var theme = stored === 'light' || stored === 'dark' ? stored
-                : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-            document.documentElement.setAttribute('data-theme', theme);
+            var root = document.documentElement, theme = null, paused = false;
+            try { theme = localStorage.getItem('theme'); paused = localStorage.getItem('motion') === 'paused'; } catch (_) {}
+            if (theme !== 'light' && theme !== 'dark') {
+                theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            }
+            root.setAttribute('data-theme', theme);
+            // Blocks start hidden only when the builders will really run: no flash of the
+            // finished page before the cursors arrive. If the runtime never starts, show everything.
+            if (!paused && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                root.setAttribute('data-motion', 'on');
+                setTimeout(function () { if (!window.motionStarted) root.setAttribute('data-motion', 'off'); }, 3000);
+            }
         })();
     </script>
     <title>Daniyar Idirov · doniar4 / code, build, repeat</title>
@@ -18,7 +25,6 @@
     <link rel="preload" href="fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="style.css">
-    <noscript><style>.section { opacity: 1; transform: none; }</style></noscript>
 </head>
 <body>
     <a class="skip-link" href="#about">Skip to content</a>
